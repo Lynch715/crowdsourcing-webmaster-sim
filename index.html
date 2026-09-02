@@ -54,8 +54,8 @@ body{background:var(--bg);color:var(--txt);font-family:"PingFang SC","Microsoft 
 .chk label.grey.on{border-color:var(--red);color:var(--red)}
 
 /* bottom riders */
-#riders{display:flex;gap:8px;padding:10px 16px;background:var(--bg2);border-top:1px solid var(--line);overflow-x:auto;min-height:78px;align-items:center}
-.rider{min-width:86px;background:var(--bg3);border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-size:12px;text-align:center;position:relative}
+#riders{display:flex;flex-wrap:wrap;align-content:flex-start;gap:8px;padding:10px 16px;background:var(--bg2);border-top:1px solid var(--line);overflow-y:auto;max-height:196px;min-height:78px;align-items:center}
+.rider{min-width:112px;background:var(--bg3);border:1px solid var(--line);border-radius:8px;padding:7px 9px;font-size:12.5px;text-align:center;position:relative}
 .rider .nm{font-weight:700;font-size:13px}
 .rider .bar{height:5px;background:#333;border-radius:3px;margin-top:5px;overflow:hidden}
 .rider .bar i{display:block;height:100%;background:var(--green)}
@@ -74,8 +74,8 @@ body{background:var(--bg);color:var(--txt);font-family:"PingFang SC","Microsoft 
 .dbtn.off{border-color:var(--line);color:var(--dim)}
 .dbtn:hover{filter:brightness(1.2)}
 .dtip{font-size:12.5px;color:var(--dim);margin-bottom:8px;line-height:1.6}
-.queue{display:flex;flex-direction:column;gap:8px}
-.order{display:flex;align-items:center;gap:10px;background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:8px 12px;cursor:pointer;font-size:14px}
+.queue{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:8px}
+.order{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:7px 11px;cursor:pointer;font-size:13.5px}
 .order:hover{border-color:#5a6577}
 .order.sel{border-color:var(--yellow);background:#2b2818}
 .order.og{border-color:#7a3a3a;background:#221418}
@@ -86,7 +86,7 @@ body{background:var(--bg);color:var(--txt);font-family:"PingFang SC","Microsoft 
 .order.oj{border:1px dashed #b08430;background:#201a10;animation:jpulse 1.6s infinite}
 .order.oj .pay{color:#b08430}
 @keyframes jpulse{0%,100%{border-color:#7a5c22}50%{border-color:#ffc300}}
-.assignrow{display:flex;flex-wrap:wrap;align-items:center;gap:7px;background:var(--bg3);border:1px solid var(--yellow);border-top:none;border-radius:0 0 10px 10px;padding:9px 12px;font-size:13px;color:var(--dim)}
+.assignrow{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:7px;background:var(--bg3);border:1px solid var(--yellow);border-radius:10px;padding:9px 12px;font-size:13px;color:var(--dim)}
 .assignrow button{padding:8px 13px;background:var(--bg2);color:var(--txt);border:1px solid var(--line);border-radius:6px;cursor:pointer;font-size:13.5px}
 .assignrow button:hover{border-color:var(--yellow);color:var(--yellow)}
 @keyframes shk{0%,100%{transform:none}20%{transform:translate(-7px,3px)}45%{transform:translate(6px,-3px)}70%{transform:translate(-4px,2px)}}
@@ -784,10 +784,10 @@ function renderMorning(){
   if(S.appDay!==S.day){S.appDay=S.day;S.applicants=[];const n=R(1,3);for(let i=0;i<n;i++)S.applicants.push(mkRider());}
   const apps=(S.applicants||[]).map((a,i)=>`<div class="hire"><b>${a.name}</b><span>${spdLabel(a)} · 体力${a.stamina}</span>
     <span class="meta">${a.bio}</span>
-    <button data-i="${i}" ${S.riders.length>=14?"disabled":""}>${S.riders.length>=14?"站点满员":"招(中介费¥300)"}</button></div>`).join("");
+    <button data-i="${i}" ${S.riders.length>=20?"disabled":""}>${S.riders.length>=20?"站点满员":"招(中介费¥300)"}</button></div>`).join("");
   $("panel").innerHTML=`<h2>D${S.day} 晨会</h2>
   <div class="brief">今日天气:<b>${S.weather}</b>${S.weather==="暴雨"?"(订单暴涨,路面湿滑)":S.weather==="小雨"?"(订单上浮)":""}<br>
-  在岗骑手:<b>${S.riders.length}</b> 人(上限14)<br>
+  在岗骑手:<b>${S.riders.length}</b> 人(上限20)<br>
   订单预测:<b>${S.weather==="暴雨"?"爆单":S.weather==="小雨"?"偏多":"正常"}</b> · 人越多,平台派的单也越多</div>
   <div class="brief news">📰 ${pick(NEWS)}</div>
   ${hints.map(h=>`<div class="brief">${h}</div>`).join("")}
@@ -841,7 +841,7 @@ function renderMorning(){
   });
   $("panel").querySelectorAll(".hire button[data-i]").forEach(b=>b.onclick=()=>{
     const a=S.applicants[+b.dataset.i];
-    if(!a||S.riders.length>=14||S.money<300)return;
+    if(!a||S.riders.length>=20||S.money<300)return;
     S.money-=300;S.riders.push(a);S.applicants.splice(+b.dataset.i,1);
     if((a.spd||1)<1)unlock("scout");
     beep(880,.08);floatTxt(a.name+" 入职了 -¥300",false);
@@ -1020,17 +1020,19 @@ function tickOnce(){
   if(Math.random()<0.012)spawnOrder(Math.random()<0.5?"med":"elder");
   if(S.today.grey&&S.A.accepted&&Math.random()<0.05)spawnOrder("grey");
   S.riders.forEach(r=>{if(r.busy>0){r.busy--;if(r.busy===0)completeOrder(r);}});
+  // 玩家正在选人派单时,全场暂停抢单——世界等你点完
+  const picking=dp.sel!=null;
   // 亲哥拼命抢单
   const bro=S.riders.find(r=>r.tag==="亲哥");
-  if(bro&&!bro.busy){const o=dp.queue.find(o=>o.type!=="grey");if(o)assignOrder(o,bro,true);}
+  if(bro&&!bro.busy&&!picking){const o=dp.queue.find(o=>o.type!=="grey");if(o)assignOrder(o,bro,true);}
   // 自动模式=骑手抢单:挂出来几秒才被抢,只抢好单普通单;烂单和货单没人碰
-  if(S.today.auto){
+  if(S.today.auto&&!picking){
     let grabs=0;
     for(const r of S.riders){
       if(grabs>=((S.up||{}).bot?5:3))break;
       if(r.busy||r.tag==="亲哥")continue;
       if(r.tag==="儿子"&&S.today.careSon)continue;
-      const cand=dp.queue.filter(o=>!["grey","junk","med","elder"].includes(o.type)&&o.age>=2).sort((a,b)=>b.pay-a.pay)[0];
+      const cand=dp.queue.filter(o=>!["grey","junk","med","elder"].includes(o.type)&&o.age>=3).sort((a,b)=>b.pay-a.pay)[0];
       if(!cand)break;
       assignOrder(cand,r,true);grabs++;
     }
@@ -1064,7 +1066,7 @@ function renderDispatch(){
     <div class="dlbar"><i class="${o.dl/o.dl0<0.35?'low':''}" style="width:${Math.round(o.dl/o.dl0*100)}%"></i></div></div>`;
     if(dp.sel===o.id){ /* 选中后就地弹出骑手选择行 */
       const frees=S.riders.map((r,i)=>({r,i})).filter(x=>!x.r.busy&&!(x.r.tag==="儿子"&&S.today.careSon));
-      h+=`<div class="assignrow">👉 派给:${frees.length?frees.map(x=>`<button data-r="${x.i}">${spdIcon(x.r)}${x.r.name}${x.r.tag?"【"+x.r.tag+"】":""}</button>`).join(""):`<span style="color:var(--dim)">没有空闲骑手,等一个回来</span>`}</div>`;
+      h+=`<div class="assignrow">👉 派给<span style="font-size:11px">(选单期间已暂停抢单)</span>:${frees.length?frees.map(x=>`<button data-r="${x.i}">${spdIcon(x.r)}${x.r.name}${x.r.tag?"【"+x.r.tag+"】":""}</button>`).join(""):`<span style="color:var(--dim)">没有空闲骑手,等一个回来</span>`}</div>`;
     }
     return h;
   }).join("")||`<div class="brief" style="color:var(--dim)">暂无新订单……</div>`;
