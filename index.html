@@ -83,6 +83,12 @@ body{background:var(--bg);color:var(--txt);font-family:"PingFang SC","Microsoft 
 .order.ug .pay{color:var(--red)}
 .order.om{border-color:#3a7a5a;background:#132019}
 .order.om .pay{color:var(--green)}
+.order.oj{border:1px dashed #b08430;background:#201a10;animation:jpulse 1.6s infinite}
+.order.oj .pay{color:#b08430}
+@keyframes jpulse{0%,100%{border-color:#7a5c22}50%{border-color:#ffc300}}
+.assignrow{display:flex;flex-wrap:wrap;align-items:center;gap:7px;background:var(--bg3);border:1px solid var(--yellow);border-top:none;border-radius:0 0 10px 10px;padding:9px 12px;font-size:13px;color:var(--dim)}
+.assignrow button{padding:8px 13px;background:var(--bg2);color:var(--txt);border:1px solid var(--line);border-radius:6px;cursor:pointer;font-size:13.5px}
+.assignrow button:hover{border-color:var(--yellow);color:var(--yellow)}
 @keyframes shk{0%,100%{transform:none}20%{transform:translate(-7px,3px)}45%{transform:translate(6px,-3px)}70%{transform:translate(-4px,2px)}}
 #app.shake{animation:shk .32s}
 .hire{display:flex;align-items:center;gap:10px;background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin-bottom:8px;font-size:14px}
@@ -189,11 +195,11 @@ table.settle td:last-child{text-align:right;font-family:Menlo,monospace}
   .order .pay{min-width:42px}
   .order .meta{font-size:10.5px}
   .order .dlbar{width:50px}
-  #riders{padding:8px 9px;min-height:70px;gap:6px;padding-right:96px}
-  .rider{min-width:92px;padding:5px 7px}
+  #riders{flex-wrap:wrap;align-content:flex-start;overflow-x:hidden;overflow-y:auto;max-height:200px;padding:8px 9px 62px;min-height:70px;gap:6px}
+  .rider{flex:1 0 30%;min-width:30%;max-width:33%;padding:5px 7px;box-sizing:border-box}
   .rider .nm{font-size:12.5px}
   .rushb{padding:4px 6px!important}
-  #day-btn{position:fixed;right:10px;bottom:88px;z-index:45;margin:0;padding:13px 18px;font-size:14px;border-radius:28px;box-shadow:0 6px 20px rgba(0,0,0,.55)}
+  #day-btn{position:fixed;right:10px;bottom:12px;z-index:45;margin:0;padding:13px 18px;font-size:14px;border-radius:28px;box-shadow:0 6px 20px rgba(0,0,0,.55)}
   #title-screen h1{font-size:30px;letter-spacing:3px}
   #title-screen p{font-size:13px}
   #title-screen button{padding:13px 26px;font-size:15px}
@@ -316,7 +322,7 @@ function newGame(){
   S={
     day:1, phase:"morning", weather:"晴",
     money:2000, squeeze:20, anger:10, risk:0, family:80, /* 2000周转金起家 */
-    riders:[], sins:[], over:false, angerStreak:0,
+    riders:[], sins:[], over:false, angerStreak:0, up:{}, relN:0,
     // 当日决策
     today:{fineBad:0,fineLate:0,fineComplain:0,dedDeposit:false,dedFee:false,dedDelay:false,grey:false,careSon:false,auto:true},
     // 剧情flags
@@ -793,7 +799,30 @@ function renderMorning(){
     <label data-p="c">「兄弟们再撑撑,我也难」</label>
     <label data-p="x">不开会</label></div>
     <div class="hint">画饼能压怨气涨忠诚——但同一张饼画多了,会当场翻车。发奖金是真金白银,不翻车。</div>`}</div>
+  ${(()=>{
+    const up=S.up=S.up||{};
+    const SHOP=[
+      {id:"route",n:"📍 熟路培训",p:2000,d:"老骑手画的小区捷径地图,全员送单耗时-12%"},
+      {id:"battery",n:"🔋 换电柜",p:1500,d:"骑手每晚体力多回15"},
+      {id:"rain",n:"🪖 正品雨具+头盔",p:1200,d:"雨天催单事故率大降,摆平费减半"},
+      {id:"dorm",n:"🛏 骑手休息室",p:2500,d:"每天全员忠诚+1、怨气-2。你难得的良心投资"},
+      {id:"bot",n:"🤖 抢单外挂",p:3000,d:"抢单速度大幅提升。平台在查:每天风险+2"}];
+    const relP=1500+(S.relN||0)*500;
+    const rows=SHOP.map(s=>`<div class="hire"><b>${s.n}</b><span class="meta">${s.d}</span>
+      <button data-shop="${s.id}" data-p="${s.p}" ${up[s.id]?"disabled":S.money<s.p?"disabled":""}>${up[s.id]?"✅ 已购":"¥"+fmt(s.p)}</button></div>`).join("")
+      +`<div class="hire"><b>🥃 疏通关系</b><span class="meta">请有关部门吃顿饭,风险-12。一回生二回熟,一次比一次贵</span>
+      <button data-shop="rel" data-p="${relP}" ${S.money<relP?"disabled":""}>¥${fmt(relP)}</button></div>`;
+    return `<h2 style="margin-top:14px">🛒 站点采购</h2>${rows}`;
+  })()}
   ${apps?`<h2 style="margin-top:14px">📋 今日应聘</h2>${apps}`:""}`;
+  $("panel").querySelectorAll("[data-shop]").forEach(b=>b.onclick=()=>{
+    const id=b.dataset.shop,p=+b.dataset.p;
+    if(S.money<p)return;
+    S.money-=p;
+    if(id==="rel"){S.relN=(S.relN||0)+1;S.risk=clamp(S.risk-12,0,100);floatTxt("🥃 酒过三巡,风险-12",true);}
+    else{S.up[id]=true;floatTxt("✅ 已到位",true);}
+    beep(880,.08);save();renderMorning();
+  });
   $("panel").querySelectorAll("#pep-box label").forEach(l=>l.onclick=()=>{
     S.pep=S.pep||{a:0,c:0};S.pepDay=S.day;
     const p=l.dataset.p;let msg="";
@@ -810,7 +839,7 @@ function renderMorning(){
     beep(520,.07);save();
     $("pep-box").innerHTML=msg;
   });
-  $("panel").querySelectorAll(".hire button").forEach(b=>b.onclick=()=>{
+  $("panel").querySelectorAll(".hire button[data-i]").forEach(b=>b.onclick=()=>{
     const a=S.applicants[+b.dataset.i];
     if(!a||S.riders.length>=14||S.money<300)return;
     S.money-=300;S.riders.push(a);S.applicants.splice(+b.dataset.i,1);
@@ -836,7 +865,10 @@ function renderDecision(){
   <label id="ck-delay" class="${t.dedDelay?'on':''}">拖欠周结</label>
   ${S.C.sonIn&&!S.C.crashed?`<label id="ck-son" class="${t.careSon?'on':''}">🎒 让儿子今天歇着</label>`:""}
   ${S.A.accepted&&!S.A.closed?`<label id="ck-grey" class="grey ${t.grey?'on':''}">🕶️ 灰色生意(今日接“货”)</label>`:""}
-  </div><div class="hint">让儿子休息会少个人手,其他骑手也会嘀咕“凭什么”;灰色生意开启后,黑色的“货单”会混进订单流。</div></div>
+  </div>${(()=>{const hs=[];
+    if(S.C.sonIn&&!S.C.crashed)hs.push("让儿子休息会少个人手,其他骑手也会嘀咕“凭什么”");
+    if(S.A.accepted&&!S.A.closed)hs.push("灰色生意开启后,黑色的“货单”会混进订单流");
+    return hs.length?`<div class="hint">${hs.join(";")}。</div>`:"";})()}</div>
   <div class="ctl"><h3>📦 今日营业玩法</h3><div class="hint">开门后订单实时涌入:<b style="color:var(--yellow)">点订单→点空闲骑手</b>完成派单。骑手送单途中不能接新单;订单没人接会超时,平台罚站点的钱。<br>点<b style="color:var(--red)">送单中的骑手</b>可以【催单】提速——催得越狠,出事越快。暴雨天必爆单,自己掂量。</div></div>`;
   const bindSeg=(id,key)=>{$(id).querySelectorAll("button").forEach(b=>b.onclick=()=>{S.today[key]=+b.dataset.v;renderDecision();});};
   bindSeg("seg-bad","fineBad");bindSeg("seg-late","fineLate");bindSeg("seg-com","fineComplain");
@@ -934,7 +966,7 @@ function assignOrder(o,r,byAI){
   if(r.tag==="儿子"&&S.today.careSon)return;
   if(!byAI&&o.type==="junk"&&!r.tag)r.loy=clamp((r.loy??50)-2,0,100); /* 亲手赏的烂单,他记着 */
   dp.queue=dp.queue.filter(x=>x.id!==o.id);
-  const slow=(r.stamina<25?1.35:1)*(r.spd||1);
+  const slow=(r.stamina<25?1.35:1)*(r.spd||1)*((S.up||{}).route?0.88:1);
   beep(660,.07);
   r.busy=Math.max(2,Math.round(o.dur*slow));r.busy0=r.busy;r.cur=o;
   dp.sel=null;renderDispatch();
@@ -949,9 +981,13 @@ function rushRider(r){
   if(r.cur)r.cur.rushed=true;
   S.anger=clamp(S.anger+2,0,100);
   dp.stats.rush++;S.B.rushCount++;
-  const p=4+(S.weather==="暴雨"?6:S.weather==="小雨"?3:0)+(r.stamina<25?8:0);
+  const up=S.up||{};
+  let wp=(S.weather==="暴雨"?6:S.weather==="小雨"?3:0);
+  if(up.rain)wp=Math.max(0,wp-4);
+  const p=4+wp+(r.stamina<25?8:0);
   if(!r.tag&&R(1,100)<=p){ // 剧情角色的事故由剧情线接管
-    const cost=R(300,1200); /* 摆平费——大头你摊给了骑手,所以怨气涨得凶 */
+    let cost=R(300,1200); /* 摆平费——大头你摊给了骑手,所以怨气涨得凶 */
+    if(up.rain)cost=Math.round(cost/2);
     S.money-=cost;S.anger=clamp(S.anger+8,0,100);S.risk=clamp(S.risk+3,0,100);
     dp.stats.acc++;dp.stats.accCost+=cost;
     r.busy=0;r.busy0=0;r.cur=null;r.stamina=15;
@@ -978,7 +1014,7 @@ function tickOnce(){
   const dp=S.dispatch;if(!dp)return;
   dp.t++;
   const wMult={"晴":1,"阴":1,"小雨":1.35,"暴雨":1.8}[S.weather];
-  dp.acc+=(0.55+S.riders.length*0.045)*wMult; /* 人多单多,但增速放缓——招人是真解压 */
+  dp.acc+=(0.28+S.riders.length*0.05)*wMult; /* 晴天≈七成运力,雨天必爆单;人多单多但增速放缓 */
   while(dp.acc>=1){dp.acc--;spawnOrder();}
   if(Math.random()<0.018)spawnOrder("urgent");
   if(Math.random()<0.012)spawnOrder(Math.random()<0.5?"med":"elder");
@@ -991,7 +1027,7 @@ function tickOnce(){
   if(S.today.auto){
     let grabs=0;
     for(const r of S.riders){
-      if(grabs>=2)break;
+      if(grabs>=((S.up||{}).bot?5:3))break;
       if(r.busy||r.tag==="亲哥")continue;
       if(r.tag==="儿子"&&S.today.careSon)continue;
       const cand=dp.queue.filter(o=>!["grey","junk","med","elder"].includes(o.type)&&o.age>=2).sort((a,b)=>b.pay-a.pay)[0];
@@ -1020,11 +1056,18 @@ function renderDispatch(){
   if(st){const tot=dp.stats.done+dp.stats.timeout;const rate=tot?Math.round(dp.stats.done/tot*100):100;
   st.textContent=`🕙 ${clockStr(dp.t)} · 完成${dp.stats.done} · 超时${dp.stats.timeout} · 准时率${rate}%`;}
   const q=$("queue");if(!q)return;
-  q.innerHTML=dp.queue.map(o=>`<div class="order ${o.type==="grey"?"og":o.type==="urgent"?"ug":(o.type==="med"||o.type==="elder")?"om":""} ${dp.sel===o.id?"sel":""}" data-id="${o.id}">
+  q.innerHTML=dp.queue.map(o=>{
+    const cls=o.type==="grey"?"og":o.type==="urgent"?"ug":o.type==="junk"?"oj":(o.type==="med"||o.type==="elder")?"om":"";
+    let h=`<div class="order ${cls} ${dp.sel===o.id?"sel":""}" data-id="${o.id}">
     <span class="pay">¥${o.pay}</span><span>${o.from} → ${o.to}</span>
     <span class="meta">${o.lb} · 送约${gm(o.dur)}分 · 限${gm(o.dl)}分</span>
-    <div class="dlbar"><i class="${o.dl/o.dl0<0.35?'low':''}" style="width:${Math.round(o.dl/o.dl0*100)}%"></i></div></div>`).join("")
-    ||`<div class="brief" style="color:var(--dim)">暂无新订单……</div>`;
+    <div class="dlbar"><i class="${o.dl/o.dl0<0.35?'low':''}" style="width:${Math.round(o.dl/o.dl0*100)}%"></i></div></div>`;
+    if(dp.sel===o.id){ /* 选中后就地弹出骑手选择行 */
+      const frees=S.riders.map((r,i)=>({r,i})).filter(x=>!x.r.busy&&!(x.r.tag==="儿子"&&S.today.careSon));
+      h+=`<div class="assignrow">👉 派给:${frees.length?frees.map(x=>`<button data-r="${x.i}">${spdIcon(x.r)}${x.r.name}${x.r.tag?"【"+x.r.tag+"】":""}</button>`).join(""):`<span style="color:var(--dim)">没有空闲骑手,等一个回来</span>`}</div>`;
+    }
+    return h;
+  }).join("")||`<div class="brief" style="color:var(--dim)">暂无新订单……</div>`;
   q.querySelectorAll(".order").forEach(el=>{
     el.onclick=()=>{dp.sel=dp.sel===+el.dataset.id?null:+el.dataset.id;renderDispatch();};
     el.ondblclick=()=>{ /* 双击快派:直接丢给最快的空闲骑手 */
@@ -1032,6 +1075,11 @@ function renderDispatch(){
       const free=S.riders.filter(r=>!r.busy&&!(r.tag==="儿子"&&S.today.careSon)).sort((a,b)=>(a.spd||1)-(b.spd||1))[0];
       if(free)assignOrder(o,free);
     };
+  });
+  q.querySelectorAll(".assignrow button").forEach(b=>b.onclick=e=>{
+    e.stopPropagation();
+    const o=dp.queue.find(x=>x.id===dp.sel),r=S.riders[+b.dataset.r];
+    if(o&&r)assignOrder(o,r);
   });
   renderHUD();
 }
@@ -1099,6 +1147,10 @@ function settle(){
   if(S.C.sonIn&&!S.C.crashed&&!t.careSon&&sonN>=3)S.C.squeezeDays++;
   // 忠诚度日漂移:罚款克扣寒了心,不作恶慢慢回暖
   if(fineLv+dedN>0)loyAll(-(fineLv+dedN));else loyAll(1);
+  // 设施效果
+  const up=S.up||{};
+  if(up.dorm){loyAll(1);S.anger=clamp(S.anger-2,0,100);}
+  if(up.bot){S.risk=clamp(S.risk+2,0,100);}
   // 离职/举报/补员
   const notes=[];
   // 忠心老骑手替你挡事
@@ -1127,7 +1179,7 @@ function settle(){
 function nextDay(){
   if(S.day>=30){showEnding("survive");return;}
   S.day++;S.dispatch=null;
-  S.riders.forEach(r=>{r.busy=0;r.busy0=0;r.cur=null;r.stamina=clamp(r.stamina+28,5,100);});
+  S.riders.forEach(r=>{r.busy=0;r.busy0=0;r.cur=null;r.stamina=clamp(r.stamina+28+((S.up||{}).battery?15:0),5,100);});
   save();
   renderMorning();
 }
@@ -1301,10 +1353,21 @@ function exportReport(endTitle,score,rank){
   x.textAlign="center";x.fillStyle="#5a6270";x.font="17px sans-serif";
   x.fillText("本游戏为虚构讽刺作品 · 压榨与违法皆有代价",W/2,H-90);
   x.fillText(new Date().toLocaleDateString("zh-CN"),W/2,H-60);
-  const a=document.createElement("a");
-  a.download="众包站长模拟器_结局报告.png";
-  a.href=c.toDataURL("image/png");
-  a.click();
+  const url=c.toDataURL("image/png");
+  /* 预览层:任何环境都能右键/长按保存 */
+  const layer=document.createElement("div");
+  layer.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:300;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:16px";
+  layer.innerHTML=`<img src="${url}" style="max-height:78vh;max-width:92vw;border:1px solid #FFC300;border-radius:8px">
+  <div style="color:#8b95a3;font-size:13px">电脑:右键图片另存为 · 手机:长按图片保存</div>
+  <button style="padding:11px 30px;background:#FFC300;color:#111;border:none;border-radius:8px;font-weight:700;cursor:pointer">关闭</button>`;
+  layer.querySelector("button").onclick=()=>layer.remove();
+  document.body.appendChild(layer);
+  /* 同时尝试直接下载(支持的浏览器会直接存文件) */
+  try{
+    const a=document.createElement("a");
+    a.download="众包站长模拟器_结局报告.png";a.href=url;
+    document.body.appendChild(a);a.click();a.remove();
+  }catch(e){}
 }
 
 /* ============ 顶栏状态说明 ============ */
