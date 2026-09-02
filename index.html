@@ -1,0 +1,1295 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>众包站长模拟器</title>
+<style>
+:root{
+  --yellow:#FFC300; --bg:#14181f; --bg2:#1c222c; --bg3:#242c39;
+  --line:#39424f; --txt:#d8dde5; --dim:#8b95a3; --red:#e05545; --green:#5abf7a;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--txt);font-family:"PingFang SC","Microsoft YaHei",sans-serif;overflow:hidden}
+#app{display:none;flex-direction:column;height:100vh;max-width:1280px;margin:0 auto}
+
+/* HUD */
+#hud{display:flex;align-items:center;gap:14px;padding:10px 16px;background:var(--bg2);border-bottom:2px solid var(--yellow);flex-wrap:wrap}
+#hud .date{font-weight:700;color:var(--yellow);font-size:18px}
+#hud .stat{display:flex;align-items:center;gap:5px;font-size:15px;background:var(--bg3);padding:4px 10px;border-radius:6px;border:1px solid var(--line)}
+#hud .stat b{min-width:34px;text-align:right}
+#hud .stat img{width:19px;height:19px}
+.warn b{color:var(--red)!important}
+#hud .stat{cursor:pointer}
+#hud .stat:hover{border-color:var(--yellow)}
+#tipbox{display:none;position:fixed;top:52px;left:50%;transform:translateX(-50%);z-index:80;max-width:min(520px,92vw);background:var(--bg2);border:1px solid var(--yellow);border-radius:10px;padding:12px 16px;font-size:14px;line-height:1.8;box-shadow:0 10px 40px rgba(0,0,0,.6)}
+#tipbox b{color:var(--yellow)}
+#tipbox .x{float:right;cursor:pointer;color:var(--dim);padding:0 4px}
+
+/* main */
+#main{flex:1;display:flex;min-height:0}
+#left{width:270px;padding:14px;display:flex;flex-direction:column;align-items:center;gap:8px;border-right:1px solid var(--line);background:var(--bg2)}
+#boss-art{width:220px;height:330px;border:1px solid var(--line);border-radius:10px;background:linear-gradient(180deg,#2a3342,#1a202a);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
+#boss-art img{width:100%;height:100%;object-fit:cover}
+#boss-art .ph{font-size:80px;filter:grayscale(.2)}
+#boss-mood{font-size:13px;color:var(--dim);text-align:center;line-height:1.6;padding:0 6px}
+#panel{flex:1;padding:18px 22px;overflow-y:auto;background:linear-gradient(rgba(20,24,31,.93),rgba(20,24,31,.96)),url("assets/bg/bg_station_day.png") center/cover}
+#panel h2{color:var(--yellow);font-size:20px;margin-bottom:12px;border-left:4px solid var(--yellow);padding-left:10px}
+.brief{background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin-bottom:10px;line-height:1.8;font-size:15px}
+.brief .news{color:var(--dim);font-style:italic}
+.brief b{color:var(--yellow)}
+
+/* decision controls */
+.ctl{background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin-bottom:10px}
+.ctl h3{font-size:15px;margin-bottom:8px;color:var(--txt)}
+.ctl .hint{font-size:12px;color:var(--dim);margin-top:6px;line-height:1.5}
+.seg{display:flex;gap:8px;flex-wrap:wrap}
+.seg button{flex:1;min-width:90px;padding:9px 6px;background:var(--bg3);color:var(--txt);border:1px solid var(--line);border-radius:6px;cursor:pointer;font-size:14px}
+.seg button.on{background:var(--yellow);color:#111;font-weight:700;border-color:var(--yellow)}
+.seg button.danger.on{background:var(--red);color:#fff;border-color:var(--red)}
+.chk{display:flex;gap:8px;flex-wrap:wrap}
+.chk label{display:flex;align-items:center;gap:6px;background:var(--bg3);border:1px solid var(--line);border-radius:6px;padding:8px 12px;cursor:pointer;font-size:14px;user-select:none}
+.chk label.on{border-color:var(--yellow);color:var(--yellow)}
+.chk label.grey.on{border-color:var(--red);color:var(--red)}
+
+/* bottom riders */
+#riders{display:flex;gap:8px;padding:10px 16px;background:var(--bg2);border-top:1px solid var(--line);overflow-x:auto;min-height:78px;align-items:center}
+.rider{min-width:86px;background:var(--bg3);border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-size:12px;text-align:center;position:relative}
+.rider .nm{font-weight:700;font-size:13px}
+.rider .bar{height:5px;background:#333;border-radius:3px;margin-top:5px;overflow:hidden}
+.rider .bar i{display:block;height:100%;background:var(--green)}
+.rider .bar i.low{background:var(--red)}
+.rider .tag{position:absolute;top:-8px;right:-4px;background:var(--red);color:#fff;font-size:10px;padding:1px 5px;border-radius:4px}
+#day-btn{margin-left:auto;padding:14px 34px;background:var(--yellow) url("assets/ui/ui_btn_primary.png") center/100% 100% no-repeat;color:#111;font-weight:700;font-size:16px;border:none;border-radius:8px;cursor:pointer;white-space:nowrap;text-shadow:0 1px 0 rgba(255,255,255,.35)}
+#day-btn:hover{filter:brightness(1.1)}
+#day-btn:active{background-image:url("assets/ui/ui_btn_primary_pressed.png")}
+
+/* dispatch */
+.dhead{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.dhead .tbar{flex:1;height:10px;background:#333;border-radius:5px;overflow:hidden}
+.dhead .tbar i{display:block;height:100%;background:var(--yellow)}
+#dstats{font-size:13px;color:var(--dim);white-space:nowrap}
+.dbtn{padding:6px 12px;font-size:13px;background:var(--bg3);color:var(--txt);border:1px solid var(--yellow);border-radius:6px;cursor:pointer;white-space:nowrap}
+.dbtn.off{border-color:var(--line);color:var(--dim)}
+.dbtn:hover{filter:brightness(1.2)}
+.dtip{font-size:12.5px;color:var(--dim);margin-bottom:8px;line-height:1.6}
+.queue{display:flex;flex-direction:column;gap:8px}
+.order{display:flex;align-items:center;gap:10px;background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:8px 12px;cursor:pointer;font-size:14px}
+.order:hover{border-color:#5a6577}
+.order.sel{border-color:var(--yellow);background:#2b2818}
+.order.og{border-color:#7a3a3a;background:#221418}
+.order.ug{border-color:var(--red);background:#261a15}
+.order.ug .pay{color:var(--red)}
+.order.om{border-color:#3a7a5a;background:#132019}
+.order.om .pay{color:var(--green)}
+@keyframes shk{0%,100%{transform:none}20%{transform:translate(-7px,3px)}45%{transform:translate(6px,-3px)}70%{transform:translate(-4px,2px)}}
+#app.shake{animation:shk .32s}
+.hire{display:flex;align-items:center;gap:10px;background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin-bottom:8px;font-size:14px}
+.hire .meta{color:var(--dim);font-size:12.5px;flex:1}
+.hire button{padding:7px 14px;background:var(--yellow);color:#111;border:none;border-radius:6px;font-weight:700;cursor:pointer;white-space:nowrap}
+.hire button:disabled{background:var(--bg3);color:var(--dim);cursor:not-allowed}
+.order .pay{font-weight:700;color:var(--yellow);min-width:64px;text-align:right}
+.order .meta{color:var(--dim);font-size:12px}
+.order .dlbar{width:74px;height:6px;background:#333;border-radius:3px;overflow:hidden;margin-left:auto;flex:none}
+.order .dlbar i{display:block;height:100%;background:var(--green)}
+.order .dlbar i.low{background:var(--red)}
+.rider.can{border-color:var(--yellow);cursor:pointer}
+.rider.can:hover{background:#332e1a}
+.rider.busy{border-color:#5a4a2a}
+.rider .st{font-size:11px;color:var(--dim);margin-top:2px;min-height:14px}
+.rider .rushb{margin-top:3px;font-size:11px;background:var(--red);color:#fff;border:none;border-radius:4px;padding:2px 6px;cursor:pointer;width:100%}
+.rider .bar i.busy{background:var(--yellow)}
+.rider .nm{cursor:pointer}
+.rider .nm:hover{color:var(--yellow)}
+.rmono{width:84px;height:84px;border-radius:50%;background:var(--bg3);border:2px solid var(--yellow);display:flex;align-items:center;justify-content:center;font-size:40px;color:var(--yellow);margin:22px auto 0;font-weight:700}
+.rprof table.settle td{border-bottom:1px solid var(--line)}
+/* settlement table */
+table.settle{width:100%;border-collapse:collapse;margin:8px 0;font-size:14px}
+table.settle td{padding:7px 10px;border-bottom:1px solid var(--line)}
+table.settle td:last-child{text-align:right;font-family:Menlo,monospace}
+.pos{color:var(--green)}.neg{color:var(--red)}
+
+/* modal / event card */
+#modal-layer{position:fixed;inset:0;background:rgba(0,0,0,.72);display:none;align-items:center;justify-content:center;z-index:50}
+.card{width:min(560px,92vw);max-height:88vh;overflow-y:auto;background:var(--bg2);border:1px solid var(--yellow);border-radius:12px;padding:0 0 18px;box-shadow:0 12px 50px rgba(0,0,0,.6)}
+.card .art{position:relative;height:200px;background:linear-gradient(160deg,#2a3342,#181d26);display:flex;align-items:center;justify-content:center;font-size:64px;border-radius:12px 12px 0 0;overflow:hidden}
+.card .art img{width:100%;height:100%;object-fit:cover}
+.card .art.tall{height:290px}
+.card .art img.fig{position:absolute;right:14px;bottom:0;top:auto;left:auto;height:94%;width:auto;object-fit:contain;filter:drop-shadow(0 6px 14px rgba(0,0,0,.55))}
+.card h3{padding:14px 20px 4px;color:var(--yellow);font-size:18px}
+.card .txt{padding:6px 20px 14px;line-height:1.9;font-size:15px;white-space:pre-wrap}
+.card .btns{display:flex;flex-direction:column;gap:9px;padding:0 20px}
+.card .btns button{padding:12px;background:var(--bg3);border:1px solid var(--line);color:var(--txt);border-radius:8px;cursor:pointer;font-size:15px;text-align:left;line-height:1.5}
+.card .btns button:hover{border-color:var(--yellow);color:var(--yellow)}
+.card .btns button small{display:block;color:var(--dim);font-size:12px;margin-top:2px}
+
+/* ending */
+.ending .art{height:230px}
+.ending h3{font-size:24px;text-align:center;padding-top:18px}
+.ending .txt{font-size:15px}
+.sins{margin:6px 20px 14px;padding:12px 16px;background:#1a1216;border:1px solid #5c2c2c;border-radius:8px;font-size:13.5px;line-height:2;color:#e0b8b0}
+.sins b{color:var(--red)}
+
+/* float text */
+#float-layer{position:fixed;inset:0;pointer-events:none;z-index:60}
+.float{position:absolute;font-weight:700;font-size:17px;animation:fl 1.4s ease-out forwards;text-shadow:0 2px 6px #000}
+@keyframes fl{from{opacity:1;transform:translateY(0)}to{opacity:0;transform:translateY(-70px)}}
+
+/* title screen */
+#title-screen{position:fixed;inset:0;background:linear-gradient(rgba(13,16,21,.82),rgba(13,16,21,.94)),url("assets/bg/bg_street_rain.png") center/cover,radial-gradient(ellipse at 50% 30%,#232b38,#0d1015);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;z-index:100;text-align:center;padding:20px}
+#title-screen .helmet{font-size:90px}
+#title-screen .logo{max-width:min(560px,88vw);border-radius:12px;box-shadow:0 10px 50px rgba(0,0,0,.6)}
+#title-screen h1{font-size:44px;color:var(--yellow);letter-spacing:6px;text-shadow:0 4px 18px rgba(255,195,0,.25)}
+#title-screen p{color:var(--dim);max-width:520px;line-height:2;font-size:15px}
+#title-screen .tbtns{display:flex;gap:14px;margin-top:10px}
+#title-screen button{padding:16px 46px;font-size:17px;background:var(--yellow) url("assets/ui/ui_btn_primary.png") center/100% 100% no-repeat;border:none;border-radius:8px;font-weight:700;cursor:pointer;color:#111;text-shadow:0 1px 0 rgba(255,255,255,.35)}
+#title-screen button:active{background-image:url("assets/ui/ui_btn_primary_pressed.png")}
+#title-screen button.ghost{background:transparent;border:1px solid var(--line);color:var(--dim)}
+#title-screen .disc{font-size:12px;color:#5a6270;max-width:520px;line-height:1.7}
+
+/* toast & rank & achievements */
+#toasts{position:fixed;right:14px;bottom:92px;z-index:130;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.toast{background:var(--bg2);border:1px solid var(--yellow);border-radius:8px;padding:10px 16px;font-size:13.5px;box-shadow:0 6px 24px rgba(0,0,0,.5);animation:tin .3s}
+@keyframes tin{from{opacity:0;transform:translateX(40px)}to{opacity:1;transform:none}}
+.rankbadge{margin:4px 20px 10px;padding:12px 16px;background:linear-gradient(135deg,#2b2510,#1c1a10);border:1px solid var(--yellow);border-radius:10px;text-align:center}
+.rankbadge .rk{font-size:22px;color:var(--yellow);font-weight:700;letter-spacing:2px}
+.rankbadge .sc{font-size:13px;color:var(--dim);margin-top:4px}
+.lb{margin:0 20px 12px;font-size:12.5px;color:var(--dim);line-height:1.9;background:var(--bg3);border-radius:8px;padding:8px 14px}
+.lb b{color:var(--yellow)}
+#ach-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:140;align-items:center;justify-content:center}
+#ach-modal .inner{width:min(560px,92vw);max-height:84vh;overflow-y:auto;background:var(--bg2);border:1px solid var(--yellow);border-radius:12px;padding:18px 20px}
+#ach-modal h3{color:var(--yellow);margin-bottom:12px}
+.achrow{display:flex;gap:10px;align-items:center;padding:8px 10px;border-bottom:1px solid var(--line);font-size:14px}
+.achrow.lock{opacity:.42;filter:grayscale(1)}
+.achrow .ic{font-size:22px}
+.achrow small{display:block;color:var(--dim);font-size:12px}
+#ach-modal .close{margin-top:12px;width:100%;padding:11px;background:var(--yellow);border:none;border-radius:8px;font-weight:700;cursor:pointer}
+/* debug */
+#debug{display:none;position:fixed;bottom:10px;left:10px;background:#000c;border:1px solid var(--line);padding:10px;border-radius:8px;z-index:200;font-size:12px}
+#debug button,#debug input{margin:2px;font-size:12px}
+@media (max-width:760px){#left{display:none}}
+</style>
+</head>
+<body>
+
+<div id="title-screen">
+  <img class="logo" src="assets/ui/logo_title.png" alt="" onerror="this.remove()">
+  <h1>众包站长模拟器</h1>
+  <p>你是这条街上最大的众包站站长。<br>骑手的每一分超时罚款,都是你的酒钱。<br>压榨得越狠,赚得越多——代价嘛,总有别人来付。<br><b style="color:#e05545">直到轮到你自己。</b></p>
+  <div class="tbtns">
+    <button id="btn-new">开始作恶</button>
+    <button id="btn-cont" class="ghost" style="display:none">继续上局</button>
+    <button id="btn-ach" class="ghost">🏆 成就</button>
+  </div>
+  <p class="disc">本游戏为讽刺性虚构作品,剧情取材于对行业乱象的批判。<br>压榨、违法皆有代价,反派没有好下场。</p>
+</div>
+
+<div id="app">
+  <div id="hud">
+    <span class="date" id="hud-day">D1</span>
+    <span id="hud-weather">☀️ 晴</span>
+    <span class="stat" id="st-money"><img src="assets/ui/icon_money.png" onerror="this.outerHTML='💰'"><b id="hud-money">0</b></span>
+    <span class="stat" id="st-squeeze"><img src="assets/ui/icon_squeeze.png" onerror="this.outerHTML='🔥'">压榨 <b id="hud-squeeze">0</b></span>
+    <span class="stat" id="st-anger"><img src="assets/ui/icon_anger.png" onerror="this.outerHTML='😡'">怨气 <b id="hud-anger">0</b></span>
+    <span class="stat" id="st-risk"><img src="assets/ui/icon_risk.png" onerror="this.outerHTML='🚨'">风险 <b id="hud-risk">0</b></span>
+    <span class="stat" id="st-family"><img src="assets/ui/icon_family.png" onerror="this.outerHTML='👪'">家庭 <b id="hud-family">0</b></span>
+  </div>
+  <div id="main">
+    <div id="left">
+      <div id="boss-art"><span class="ph" id="boss-ph">🕴️</span><img id="boss-img" style="display:none" alt=""></div>
+      <div id="boss-mood"></div>
+    </div>
+    <div id="panel"></div>
+  </div>
+  <div id="riders"></div>
+  <div id="float-layer"></div>
+  <div id="modal-layer"></div>
+  <div id="tipbox"></div>
+</div>
+<div id="toasts"></div>
+<div id="ach-modal"><div class="inner"><h3>🏆 成就(跨局保留)</h3><div id="ach-list"></div><button class="close" onclick="document.getElementById('ach-modal').style.display='none'">关闭</button></div></div>
+
+<div id="debug">
+  <div>调试面板(按 ` 关闭)</div>
+  <button onclick="DBG.set('money',99999)">钱99999</button>
+  <button onclick="DBG.set('squeeze',80)">压榨80</button>
+  <button onclick="DBG.set('anger',90)">怨气90</button>
+  <button onclick="DBG.set('risk',90)">风险90</button>
+  <button onclick="DBG.set('family',5)">家庭5</button>
+  <button onclick="DBG.skip()">跳到下一天</button>
+</div>
+
+<script>
+"use strict";
+/* ============ 工具 ============ */
+const $=id=>document.getElementById(id);
+const R=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
+const pick=arr=>arr[Math.floor(Math.random()*arr.length)];
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const fmt=n=>n.toLocaleString('zh-CN');
+/* 音效(首次用户点击后激活) */
+let AC=null;
+document.addEventListener("click",()=>{if(!AC&&window.AudioContext){AC=new AudioContext();}},{once:false});
+function beep(f,d,type,g){
+  try{
+    if(!AC)return;
+    const o=AC.createOscillator(),v=AC.createGain();
+    o.frequency.value=f;o.type=type||"square";v.gain.value=g||0.035;
+    o.connect(v);v.connect(AC.destination);o.start();
+    v.gain.exponentialRampToValueAtTime(0.0001,AC.currentTime+d);o.stop(AC.currentTime+d);
+  }catch(e){}
+}
+function shake(){const a=$("app");if(!a)return;a.classList.remove("shake");void a.offsetWidth;a.classList.add("shake");}
+
+/* ============ 游戏状态 ============ */
+let S=null;
+const SURNAMES="王李张刘陈杨赵黄周吴徐孙马朱胡郭何高林罗".split("");
+const GIVEN="强 伟 磊 军 洋 勇 涛 明 超 斌 辉 鹏 飞 浩 龙 建国 志远 小海 大成 二娃".split(" ");
+const BIOS=[
+"以前在厂里拧螺丝,厂子搬去越南了。",
+"单亲爸爸,俩娃。跑完单回家还得做饭。",
+"白天写字楼上班,晚上跑单还房贷。",
+"大学生,学费自己挣。",
+"说攒够钱就回老家开小卖部——说了三年了。",
+"前程序员,35岁那年被“优化”了。",
+"不爱说话,但每个月往家里打3000。",
+"刚来城里,路都认不全,全靠导航。",
+"老婆管账,自己一天饭钱15块。",
+"膝盖有旧伤,雨天疼,但雨天单多。"];
+function mkRider(name,tag){
+  const bio=tag==="儿子"?"你儿子。高考差本科线41分,想复读。他说不要你照顾。":
+            tag==="亲哥"?"你亲哥。欠网贷37万。他说多跑一单,多还一单。":pick(BIOS);
+  return{name:name||pick(SURNAMES)+pick(GIVEN),stamina:R(80,100),tag:tag||"",alive:true,
+         art:pick(["a","b","c"]),bio,total:0,spd:pick([0.85,1,1,1,1.15]),loy:R(40,60)};
+}
+function loyAll(d){S.riders.forEach(r=>{r.loy=clamp((r.loy??50)+d,0,100);});}
+const loyMood=r=>{const l=r.loy??50;return l>=70?"「站长其实……对我还行。」":l>=40?"沉默地干活,不多说一句话。":l>=20?"看你的眼神,像看仇人。":"⚠️ 他最近总在偷偷录音。"};
+const spdLabel=r=>(r.spd||1)<1?"⚡快腿":(r.spd||1)>1?"🐢慢性子":"普通";
+const spdIcon=r=>(r.spd||1)<1?"⚡":(r.spd||1)>1?"🐢":"";
+
+function newGame(){
+  S={
+    day:1, phase:"morning", weather:"晴",
+    money:2000, squeeze:20, anger:10, risk:0, family:80, /* 2000周转金起家 */
+    riders:[], sins:[], over:false, angerStreak:0,
+    // 当日决策
+    today:{fineBad:0,fineLate:0,fineComplain:0,dedDeposit:false,dedFee:false,dedDelay:false,grey:false,careSon:false,auto:true},
+    // 剧情flags
+    A:{offered:0,accepted:false,closed:false,greyDays:0,sting:false},
+    B:{rushCount:0,hit:false,visits:0,lastVisit:0},
+    C:{gaokao:false,asked:false,sonIn:false,squeezeDays:0,crashed:false,bedTalk:false,crashDay:0},
+    D:{arrived:false,refused:false,days:0,crushed:false,crushDay:0,wheelchair:false},
+  };
+  for(let i=0;i<9;i++)S.riders.push(mkRider());
+  save();
+}
+function save(){try{localStorage.setItem("zbsim2",JSON.stringify(S));}catch(e){}}
+function load(){try{const d=localStorage.getItem("zbsim2");if(d){S=JSON.parse(d);return true;}}catch(e){}return false;}
+function wipe(){try{localStorage.removeItem("zbsim2");}catch(e){}}
+
+/* ============ HUD / 立绘 / 骑手条 ============ */
+const MOODS={
+  smug:["又是收钱的一天。","罚款也是站里重要的营收嘛。","骑手嘛,累不死就往死里用。"],
+  anxious:["最近风声有点紧……","别出事,千万别出这个月出事。","那几个刺头不会真去举报吧?"],
+  ruined:["怎么会走到这一步……","电话没人接了,家里一个人都没有了。"]
+};
+function bossState(){
+  if(S.risk>=60||S.anger>=75)return"anxious";
+  if(S.family<=25)return"ruined";
+  return"smug";
+}
+function renderHUD(){
+  $("hud-day").textContent="D"+S.day+" / 30";
+  $("hud-weather").textContent=({"晴":"☀️ 晴","阴":"☁️ 阴","小雨":"🌧️ 小雨","暴雨":"⛈️ 暴雨"})[S.weather];
+  $("hud-money").textContent=fmt(S.money);
+  $("hud-squeeze").textContent=S.squeeze; $("hud-anger").textContent=S.anger;
+  $("hud-risk").textContent=S.risk; $("hud-family").textContent=S.family;
+  $("st-squeeze").classList.toggle("warn",S.squeeze>=70);
+  $("st-anger").classList.toggle("warn",S.anger>=70);
+  $("st-risk").classList.toggle("warn",S.risk>=60);
+  $("st-family").classList.toggle("warn",S.family<=30);
+  const st=bossState();
+  if(st!==renderHUD._last){
+    renderHUD._last=st;
+    $("boss-ph").textContent=({smug:"🕴️",anxious:"😰",ruined:"🥀"})[st];
+    const img=$("boss-img");
+    img.style.display="none";
+    img.onerror=()=>{img.style.display="none";$("boss-ph").style.display="";};
+    img.onload=()=>{img.style.display="";$("boss-ph").style.display="none";};
+    img.src="assets/char/char_boss_"+st+".png";
+    $("boss-mood").textContent="“"+pick(MOODS[st])+"”";
+  }
+  renderRiders();
+}
+function renderRiders(){
+  const box=$("riders");box.innerHTML="";
+  const dp=(S.phase==="dispatch")?S.dispatch:null;
+  S.riders.forEach(r=>{
+    const d=document.createElement("div");
+    const resting=r.tag==="儿子"&&S.today.careSon;
+    d.className="rider"+(dp&&!r.busy&&dp.sel!=null&&!resting?" can":"")+(r.busy?" busy":"");
+    let st="";
+    if(dp){
+      if(resting)st=`<div class="st">😴 休息中</div>`;
+      else if(r.busy)st=`<div class="st">📦 剩${gm(r.busy)}分钟</div><div class="bar"><i class="busy" style="width:${Math.round(r.busy/(r.busy0||r.busy)*100)}%"></i></div><button class="rushb">📢 催单</button>`;
+      else st=`<div class="st">空闲 · 已跑${dp.stats.per[r.name]||0}单</div>`;
+    }
+    d.innerHTML=`<div class="nm">${spdIcon(r)}${r.name} ›</div><div class="bar"><i class="${r.stamina<35?'low':''}" style="width:${r.stamina}%"></i></div>${st}`+(r.tag?`<span class="tag">${r.tag}</span>`:"");
+    d.querySelector(".nm").onclick=e=>{e.stopPropagation();showRiderCard(r);};
+    if(dp&&!resting){
+      d.onclick=()=>{
+        if(r.busy)rushRider(r);
+        else if(dp.sel!=null){const o=dp.queue.find(o=>o.id===dp.sel);if(o)assignOrder(o,r);}
+      };
+    }else{
+      d.onclick=()=>showRiderCard(r);
+      d.style.cursor="pointer";
+    }
+    box.appendChild(d);
+  });
+  const btn=document.createElement("button");btn.id="day-btn";
+  btn.textContent=({morning:"查看今日安排 ▶",decision:"开门营业 ▶",dispatch:"提前收工 ▶",settle:"进入下一天 ▶"})[S.phase]||"▶";
+  btn.onclick=advance;
+  box.appendChild(btn);
+}
+
+/* ============ 飘字 ============ */
+function floatTxt(txt,good){
+  const f=document.createElement("div");f.className="float";
+  f.style.left=(40+Math.random()*40)+"%";f.style.top=(30+Math.random()*20)+"%";
+  f.style.color=good?"#5abf7a":"#e05545";f.textContent=txt;
+  $("float-layer").appendChild(f);setTimeout(()=>f.remove(),1400);
+}
+/* 应用效果 fx:{m,s,a,r,f} */
+function applyFx(fx){
+  if(!fx)return;
+  if(fx.m){S.money+=fx.m;floatTxt((fx.m>0?"+":"")+fmt(fx.m)+" 💰",fx.m>0);}
+  if(fx.s){S.squeeze=clamp(S.squeeze+fx.s,0,100);}
+  if(fx.a){S.anger=clamp(S.anger+fx.a,0,100);floatTxt((fx.a>0?"+":"")+fx.a+" 😡",fx.a<0);}
+  if(fx.r){S.risk=clamp(S.risk+fx.r,0,100);floatTxt((fx.r>0?"+":"")+fx.r+" 🚨",fx.r<0);}
+  if(fx.f){S.family=clamp(S.family+fx.f,0,100);floatTxt((fx.f>0?"+":"")+fx.f+" 👪",fx.f>0);}
+  renderHUD();
+}
+
+/* ============ 数据表 ============ */
+const NEWS=[
+"本地新闻:外卖骑手日均工作11.6小时,平台回应“骑手都是自愿的”。",
+"热搜:#骑手雨天摔倒订单被扣款# 阅读量2.3亿。",
+"行业快讯:某平台宣布投入一亿元“关怀骑手”,人均摊到3块7。",
+"社会版:众包站层层抽成调查——“站长才是骑手头上最近的一座山”。",
+"本地新闻:交警通报,本月外卖骑手交通事故环比上升17%。",
+"热搜:#算法把骑手逼成了亡命徒# 专家建议“骑手加强自我调节”。",
+"财经版:平台市值再创新高,骑手单价再创新低。",
+"社会版:骑手猝死引热议,家属称“连工伤都算不上”。"
+];
+
+/* 随机事件池:cond(S)可选;choices[].fx 数值效果, sin 罪状, kill/quit 特殊 */
+const EVENTS=[
+{id:"rain_fall",title:"雨天摔伤",art:"🛵",cond:s=>s.weather!=="晴",
+ txt:"暴雨里,骑手老赵为了赶超时线冲下坡,连人带车滑进排水沟,腿当场就不对劲了。电话里他声音发抖:“站长,这单……能不能别扣我钱?”",
+ choices:[
+  {t:"报工伤,走流程",s:"垫医药费,损失一天运力",fx:{m:-3000,a:-6}},
+  {t:"“自己骑车不长眼,怪我?”",s:"让他自认倒霉,单照扣",fx:{m:500,a:12,r:5},sin:"骑手雨天摔伤,你扣了他的超时罚款"}]},
+{id:"reporter",title:"记者暗访",art:"📷",cond:s=>s.squeeze>=40,
+ txt:"一个自称“新来骑手”的年轻人这两天总在打听罚款制度,今天被你发现他衣领上别着微型摄像头——是个暗访记者。",
+ choices:[
+  {t:"塞个红包,交个朋友",s:"破财免灾",fx:{m:-2000,r:-5}},
+  {t:"抢下设备,轰出站点",s:"简单粗暴",fx:{a:3,r:10},sin:"暴力驱赶暗访记者,抢夺其拍摄设备"}]},
+{id:"strike_pay",title:"集体讨薪",art:"✊",cond:s=>s.today.dedDelay||s.anger>=50,
+ txt:"七八个骑手堵在站点门口:“周结都拖两周了!今天不结清,我们就不跑了!”领头的是干了三年的老马。",
+ choices:[
+  {t:"结清欠款",s:"平息众怒",fx:{m:-4000,a:-15}},
+  {t:"“平台没打款,再等一周”",s:"继续画饼",fx:{a:15},sin:"编造借口继续拖欠骑手工资"},
+  {t:"当场开除带头的老马",s:"杀鸡儆猴",fx:{a:22,r:8},quit:1,sin:"开除讨薪带头的骑手老马"}]},
+{id:"care_notice",title:"平台“关怀”通知",art:"📄",
+ txt:"平台下发红头通知:《关于开展骑手关怀月活动的函》,要求各站点“组织学习并留存影像资料”。",
+ choices:[
+  {t:"拉横幅拍照,发完就撤",s:"横幅上写着“骑手是我们最宝贵的财富”",fx:{s:1}},
+  {t:"真发点防暑物资",s:"意思意思",fx:{m:-2500,a:-10}}]},
+{id:"kneel",title:"顾客逼骑手下跪",art:"🧎",
+ txt:"顾客投诉汤洒了一点,在电话里骂了骑手小林二十分钟,最后要求他上门下跪道歉,否则就投诉到平台让他封号。",
+ choices:[
+  {t:"“去,跪一下怎么了,别丢了单”",s:"客户就是上帝",fx:{a:16},sin:"逼骑手向无理顾客下跪道歉"},
+  {t:"罕见地护一次犊子",s:"替小林顶了投诉",fx:{m:-500,a:-10}}]},
+{id:"sudden_death",title:"骑手猝死",art:"🕯️",cond:s=>s.day>=8&&s.squeeze>=50,
+ txt:"凌晨一点,骑手大周在等最后一单出餐时倒在了商场台阶上,再没起来。他这个月已经跑了980单。家属在站点门口哭,媒体的电话也打进来了。",
+ choices:[
+  {t:"对外统一口径:“个人突发疾病,与工作无关”",s:"公司法务教的话术",fx:{r:16},sin:"骑手过劳猝死,你对外宣称“与工作无关”"},
+  {t:"认下来,给足赔偿",s:"这是你为数不多的体面",fx:{m:-15000,a:-8}}]},
+{id:"newbie",title:"新骑手应聘",art:"📝",
+ txt:"两个刚从工地下来的小伙子来应聘,问“听说你们这儿不压钱?”",
+ choices:[
+  {t:"“先交300装备押金,规矩”",s:"押金当然是不退的",fx:{m:600,a:4},sin:"巧立名目收取骑手押金"},
+  {t:"正常入职",s:"多俩人手",fx:{}}]},
+{id:"bike_stolen",title:"电动车被偷",art:"🔓",
+ txt:"骑手小吴送单上楼三分钟,租的电动车被偷了。租车公司要他赔4500。他一个月才挣多少?",
+ choices:[
+  {t:"“车是你弄丢的,自己赔”",s:"从他工资里分期扣",fx:{m:800,a:9},sin:"骑手车辆被盗,你趁机从中抽成"},
+  {t:"站里出一半",s:"小吴千恩万谢",fx:{m:-2000,a:-6}}]},
+{id:"bad_review",title:"差评轰炸",art:"⭐",
+ txt:"今天区域差评率飙红,平台警告站点排名要掉。按你的制度,一个差评罚200。",
+ choices:[
+  {t:"罚款翻倍执行",s:"排名要紧,骑手不要紧",fx:{m:1800,a:11},sin:"差评罚款翻倍,单日榨取骑手上千元"},
+  {t:"这次算了",s:"下不为例",fx:{a:-4}}]},
+{id:"traffic_police",title:"交警扣车",art:"👮",
+ txt:"交警集中整治,站里三辆车因逆行被扣,罚款加拖车费一共1500。骑手说逆行还不是因为超时要罚钱。",
+ choices:[
+  {t:"“违章是你们自己的事”",s:"罚款骑手自理",fx:{a:8}},
+  {t:"站里把车捞回来",s:"运力要紧",fx:{m:-1500,a:-3}}]},
+{id:"poach",title:"对面站来挖人",art:"🎣",
+ txt:"隔壁站开出高两毛的单价来挖你手下最能跑的几个骑手。老骑手试探着问:“站长,咱这边……能涨涨不?”",
+ choices:[
+  {t:"涨一毛,留住人",s:"肉疼",fx:{m:-1800,a:-8}},
+  {t:"“爱走走,门在那边”",s:"总有新人来",fx:{a:6},quit:1}]},
+{id:"typhoon",title:"极端天气强制营业",art:"🌪️",cond:s=>s.weather==="暴雨",
+ txt:"气象台发布橙色预警,平台却弹窗:“恶劣天气运力补贴已开启,请保障运力”。补贴归站点,风险归骑手。",
+ choices:[
+  {t:"照常派单,补贴照收",s:"“穿好雨衣,注意安全”群发完毕",fx:{m:2600,a:10,s:4},sin:"橙色预警天强制骑手全员出勤"},
+  {t:"停摆半天",s:"少赚,但没人出事",fx:{m:-1500,a:-8}}]},
+{id:"livestream",title:"骑手直播曝光",art:"📱",cond:s=>s.squeeze>=55,
+ txt:"骑手小郑开直播吐槽站里的罚款制度,三千人在线,弹幕里已经有人喊“曝光他站长”。",
+ choices:[
+  {t:"威胁他:“关播,不然封你号”",s:"他关了,但录屏已经传出去了",fx:{a:10,r:9},sin:"威胁封号逼迫骑手删除曝光内容"},
+  {t:"花钱私了",s:"让他删视频",fx:{m:-2000,r:-3}}]},
+{id:"inspection",title:"卫生检查",art:"🧾",
+ txt:"市监所来查站点消防和食品箱卫生。老实说,你这站点哪项都不太经查。",
+ choices:[
+  {t:"老规矩,意思意思",s:"塞了个信封",fx:{m:-800,r:2}},
+  {t:"停业整改",s:"损失半天",fx:{m:-1500}}]},
+{id:"borrow",title:"骑手借钱救急",art:"🏥",
+ txt:"骑手老韩的孩子住院,找你借八千,说“工资里扣,求站长了”。",
+ choices:[
+  {t:"借,但按月息三分算",s:"你管这叫“帮忙”",fx:{m:400,a:2},sin:"骑手孩子住院,你放贷收其三分月息"},
+  {t:"借,不要利息",s:"老韩眼圈红了",fx:{m:-1000,a:-10}},
+  {t:"“站里不是银行”",s:"拒绝",fx:{a:7}}]},
+{id:"drunk",title:"醉汉打骑手",art:"🍺",
+ txt:"骑手小林送单被醉汉无故扇了两耳光,餐洒了一地。他打电话问你怎么办,声音都在抖。",
+ choices:[
+  {t:"“忍忍,报警耽误接单”",s:"餐损从他工资扣",fx:{m:200,a:12},sin:"骑手被殴打,你让他“忍忍别耽误接单”"},
+  {t:"让他报警,今天单免了",s:"人比单要紧——今天你难得说了句人话",fx:{m:-300,a:-8}}]},
+{id:"algo_update",title:"算法又更新了",art:"🤖",
+ txt:"平台配送算法更新,预计送达时间又缩短了3分钟。骑手群里炸了锅:“3分钟?电梯都等不完!”",
+ choices:[
+  {t:"“算法是科学的,自己想办法”",s:"转发通知,已读不回",fx:{a:8,s:3}},
+  {t:"向平台反馈申诉",s:"石沉大海,但骑手看在眼里",fx:{a:-5}}]},
+{id:"helmet",title:"安全头盔抽查",art:"🪖",
+ txt:"平台抽查头盔佩戴率。你库房里那批“合格头盔”是九块九一个批发的,一捏一个坑。",
+ choices:[
+  {t:"继续发九块九的",s:"差价进自己腰包",fx:{m:900,r:4},sin:"采购劣质头盔,吞下安全装备差价"},
+  {t:"换一批真头盔",s:"安全无小事",fx:{m:-2200,a:-4}}]}
+];
+
+/* 灰色生意期间的专属随机事件 */
+const GREY_EVENTS=[
+{id:"g_notice",title:"骑手察觉不对劲",art:"📦",
+ txt:"骑手老马把一个“保温箱”拎回站里,脸色难看:“站长,这箱子底下夹层里是什么?你最好给我说清楚。”",
+ choices:[
+  {t:"加钱封口",s:"“一个月多给你三千,别多问”",fx:{m:-3000,r:5}},
+  {t:"“你家住XX小区吧?孩子在XX小学?”",s:"威胁他全家",fx:{a:10,r:12},sin:"威胁知情骑手及其家人,逼其为你运毒保密"}]},
+{id:"g_check",title:"路口临检",art:"🚧",
+ txt:"晚高峰,派“货”的骑手在路口撞上临检。他攥着车把的手全是汗——警察挥挥手放行了。这次。",
+ choices:[
+  {t:"“看吧,没事。继续。”",s:"你在群里发了个咧嘴笑的表情",fx:{r:8}}]}
+];
+
+/* ============ 剧情事件(按id调用) ============ */
+const STORY={
+/* ---- 线A 贩毒 ---- */
+A_offer:{title:"深夜访客",art:"🕶️",
+ txt:"打烊后,一个穿黑风衣的男人在站里坐下,自称K哥。\n\n“外卖箱,是这个城市最不会被查的箱子。”他推过来一支烟,“你的骑手顺路‘带点货’,一单顶你们跑三天。我出货,你出人,三七开——你七。”\n\n他把一沓现金压在桌上当“见面礼”。",
+ choices:[
+  {t:"收下钱。“怎么合作?”",s:"利欲熏心,踏入深渊",fx:{m:20000},sin:"与毒贩K哥合作,指使骑手利用外卖配送贩运毒品",go:"A_accept"},
+  {t:"把钱推回去。“出去。”",s:"这条线你暂时没碰",fx:{},go:"A_decline"}]},
+A_offer2:{title:"K哥的最后邀请",art:"🕶️",
+ txt:"K哥又来了,这次开门见山:“上次你没点头。最后一次机会——现在行情翻倍,一单顶你们跑六天。”\n\n他看了眼你桌上那摞催款单,笑了。",
+ choices:[
+  {t:"“……干了。”",s:"你终究还是伸了手",fx:{m:30000},sin:"与毒贩K哥合作,指使骑手利用外卖配送贩运毒品",go:"A_accept"},
+  {t:"“滚。”",s:"这条线永久关闭",fx:{},go:"A_close"}]},
+A_sting:{title:"一张大单",art:"🎣",
+ txt:"K哥转来一笔“大客户”:一次性要走三倍的量,加急,指定今晚送到城东仓库。\n\n群里你最信任的“带货”骑手回了句:“站长,这单我咋觉得不对劲?收货那人手腕上有个对讲机印子。”\n\n利润是平时的十倍。",
+ choices:[
+  {t:"“废什么话,送!”",s:"派骑手去",fx:{},go:"A_arrest_r",sin:"明知有诈仍逼迫骑手运送大宗毒品"},
+  {t:"这单我亲自送",s:"钱要赚,风险自己扛",fx:{},go:"A_arrest_s"}]},
+A_arrest_r:{title:"收网",art:"🚨",
+ txt:"骑手在仓库门口被按倒在地。他没撑过第一轮询问,把三个月来的每一单、每一句指令、每一笔转账,全都交代了。\n\n凌晨两点,站点的卷帘门被敲响。门外不是骑手。\n\n“XX区众包站站长?跟我们走一趟。”",
+ choices:[{t:"伸出双手",s:"",fx:{},go:"A_interro"}]},
+A_arrest_s:{title:"收网",art:"🚨",
+ txt:"你把电动车停在仓库门口的那一刻,四周的探照灯同时亮起。\n\n“别动!”\n\n你趴在地上,脸贴着水泥地,看见K哥从警车里下来——他戴着手铐,却在对你笑。原来他三天前就被抓了,这单是用他的手机发的。",
+ choices:[{t:"……",s:"",fx:{},go:"A_interro"}]},
+A_interro:{title:"审讯室",art:"💡",
+ txt:"白炽灯下,审讯员把一沓聊天记录截图推到你面前:每一句“别多问,送就完了”,每一笔三七分账,还有你威胁骑手家人的那段录音。\n\n“数量已经够判了。你还有什么要说的?”",
+ choices:[
+  {t:"“我是被K哥骗的,我不知情!”",s:"截图会替你回答",fx:{},go:"A_court"},
+  {t:"“……我认。”",s:"你低下了头",fx:{},go:"A_court"}]},
+A_court:{title:"庭审",art:"⚖️",
+ txt:"“被告人利用其管理的众包配送站,组织、指使多名骑手贩运毒品,数量特别巨大,并对知情人员实施威胁……”\n\n{WITNESS}\n\n公诉人念了四十分钟。旁听席上,你没有看到一个家人。\n\n“……数罪并罚,判处死刑。”\n\n法槌落下。",
+ choices:[{t:"（完）",s:"",fx:{},go:"END_death"}]},
+
+/* ---- 线B 母亲被撞 ---- */
+B_hit:{title:"那通催单电话",art:"🚑",
+ txt:"你正在群里连环轰炸:“老周!你那单还有4分钟!超时自己知道什么后果!”\n\n老周边骑车边低头回你语音,闯了红灯。\n\n十分钟后,你接到医院电话。老周撞倒的那位买菜回家的老太太——是你妈。\n\n她躺在急诊室里,老周跪在走廊上,手里还攥着那单要超时的奶茶。",
+ choices:[
+  {t:"扣老周三个月工资赔医药费",s:"“撞的是我妈,你得赔”",fx:{a:20,f:5},sin:"你的催单导致母亲被撞,你却扣光肇事骑手的工资"},
+  {t:"自掏腰包付医药费",s:"这事说到底,因你而起",fx:{m:-8000,f:8}},
+  {t:"私了压下去,别惊动交警",s:"免得查出催单记录",fx:{m:-5000,r:10},sin:"母亲被撞后,你为掩盖催单记录私了压案"}]},
+B_visit:{title:"病房",art:"🏥",
+ txt:"妈还在住院。妻子发来消息:“今天能来一趟吗?妈想见你。她不怪你,她就是想见你。”\n\n今天正好是高峰期。",
+ choices:[
+  {t:"去医院",s:"半天没盯单,少赚点",fx:{m:-2000,f:9}},
+  {t:"“忙,过两天再去”",s:"你已经说了好几次“过两天”",fx:{f:-9},sin:"母亲住院期间,你以“忙”为由拒绝探望"}]},
+
+/* ---- 线C 儿子高考 ---- */
+C_gaokao:{title:"放榜",art:"📉",
+ txt:"晚上十一点,儿子发来一条消息,只有一张查分截图。\n\n差本科线41分。\n\n你想起来,他高三这一年,你们说过的话不超过二十句——你不是在站里,就是在群里骂骑手。",
+ choices:[
+  {t:"打电话骂他:“我挣钱容易吗?你就考这点分?”",s:"电话那头很久没有声音",fx:{f:-10},sin:"儿子高考失利,你的第一反应是骂他"},
+  {t:"回了个“知道了”",s:"你不知道该说什么",fx:{f:-4}}]},
+C_ask:{title:"儿子的请求",art:"🎒",
+ txt:"儿子站在站点门口,背着书包:“爸,我想复读。但补习班要两万八……我来你站里跑单攒钱,行吗?反正你总说骑手好招。”\n\n他看着墙上的罚款制度表,又补了一句:“我不要你照顾。”",
+ choices:[
+  {t:"让他跑",s:"儿子加入骑手池",fx:{f:5},go:"C_join"},
+  {t:"“跑什么单!滚回家去!”",s:"他红着眼走了,这条线结束",fx:{f:-12}}]},
+C_crash:{title:"急诊室·又一次",art:"🚑",
+ txt:"你按“往死里压”的档位派了三天单。系统不认识你儿子,你也没让它认识。\n\n第三天晚高峰,他为了抢一个超时单逆行,被出租车撞飞三米,右腿骨折,颅内轻微出血。\n\n医生问你:“家属?孩子送来的时候还攥着手机,导航上还有俩单没送完。”",
+ choices:[{t:"冲进急诊室",s:"",fx:{f:-30,m:-20000},go:null,sin:"儿子在你的高压派单下出车祸重伤住院"}]},
+C_bed:{title:"病床边",art:"🛏️",
+ txt:"儿子醒了,看见你,扯了扯嘴角:\n\n“爸,你知道吗,你催单的语音,骑手们都开免提。全站都听得见。”\n\n“我以前不信他们说的那些。现在信了。”",
+ choices:[
+  {t:"“对不起。”",s:"这三个字你二十年没说过",fx:{f:6}},
+  {t:"“医药费我出,你安心养伤,别想复读的事了”",s:"你还是只会谈钱",fx:{f:-5}}]},
+
+/* ---- 线D 亲哥网贷 ---- */
+D_arrive:{title:"哥来了",art:"🧳",
+ txt:"你哥拎着一个编织袋站在站点门口,黑瘦得脱了相。\n\n“网贷,三十七万。”他把手机递给你,催收短信99+。“房子抵了,嫂子回娘家了。你这儿……让我跑单吧。我一天能跑十六个小时。”\n\n他是你亲哥。当年供你读完初中的那个哥。",
+ choices:[
+  {t:"“……明天来上班吧。”",s:"哥加入骑手池",fx:{f:5},go:"D_join"},
+  {t:"“我这儿不缺人。”",s:"你怕沾上他的债",fx:{f:-20},sin:"亲哥走投无路上门求助,被你拒之门外"}]},
+D_day1:{title:"哥的第一天",art:"🛵",
+ txt:"哥第一天跑了43单,全站第一。凌晨一点他还在跑,群里问他怎么还不下线,他回:“多跑一单,多还一单。”\n\n你看着他的接单量,顺手把他的派单权重又调高了一档。",
+ choices:[
+  {t:"“哥能跑,让他跑”",s:"权重拉满",fx:{m:60},sin:"明知亲哥拼命还债,你仍将他的派单量拉到极限"},
+  {t:"给他限个单量",s:"他冲进办公室跟你吵:“你限我单就是要我的命!”限了也白限",fx:{a:2}}]},
+D_day2:{title:"哥的第二天",art:"🌧️",
+ txt:"哥两天跑了91单。今天他闯了四个红灯,被系统标记“危险驾驶”。你在监控里看见他蹲在便利店门口,十秒钟吃完一个面包,边吃边看着手机上的催收短信。\n\n他给你发消息:“再让系统多给我派点,夜单也行。”",
+ choices:[
+  {t:"“行。”",s:"你回得很快",fx:{m:80},sin:"亲哥危险驾驶被系统警告,你反而给他加派夜单"},
+  {t:"没回消息",s:"但系统的派单,你也没调低",fx:{}}]},
+D_crush:{title:"第三天,夜",art:"🚛",
+ txt:"晚上十一点四十,哥抢一个黄灯过路口,被右转的半挂货车卷进车底。\n\n双腿高位截肢。\n\n医生说,命保住了。交警认定货车主责,赔偿金合计四十二万。\n\n你坐在ICU外面的长椅上算了笔账:四十二万,还清三十七万网贷,还剩五万。\n\n够了。真的“够了”。",
+ choices:[{t:"「这也算……解决了?」",s:"",fx:{f:-40},sin:"亲哥入职第三天被半挂车碾断双腿——用赔偿金还清了网贷"}]},
+D_wheel:{title:"轮椅",art:"🦽",
+ txt:"出院后,哥摇着轮椅来站里看你。他居然是笑着的。\n\n“别哭丧着脸。债清了,嫂子回来了。”他拍拍空荡荡的裤管,“说起来还得谢谢你这儿……单子多。”\n\n他从袋里摸出两包烟放你桌上,摇着轮椅走了。你在监控里看着他的背影,在路口停了很久,很久。",
+ choices:[
+  {t:"追出去",s:"你们兄弟俩在路口抽完了那两包烟,谁都没说话",fx:{f:8}},
+  {t:"没动",s:"你觉得你没脸追",fx:{f:-10}}]}
+};
+
+/* ============ 结局文案 ============ */
+const ENDINGS={
+death:{t:"雷霆雨露,俱是天恩",art:"⚖️",cls:"ending",
+ txt:"执行通知书下达那天,你透过铁窗看见外面下着雨。\n\n你想起那些暴雨天——你在群里发“大家注意安全”,然后把派单强度调到最高。\n\n骑手们还在雨里跑。只是再也没有人,给你送最后一程。"},
+prison:{t:"锒铛入狱",art:"🔒",cls:"ending",
+ txt:"举报信、事故瞒报、账本、录音……办案人员从你办公室搬走了三箱证据。\n\n数罪并罚,有期徒刑十二年。\n\n宣判那天你五十一岁。出来那年,你六十三。没有人来接你。"},
+family:{t:"众叛亲离",art:"🕳️",cls:"ending",
+ txt:"妻子带走了最后一个行李箱。儿子的电话是空号。哥的轮椅再也没有出现在站点门口。\n\n骑手们陆陆续续都走光了,新人听说这站的名声,没人肯来。\n\n深夜的站点只剩你一个人。你给通讯录里每个人都打了一遍电话。\n\n没有一个人接。"},
+expelled:{t:"行业除名",art:"📢",cls:"ending",
+ txt:"骑手集体罢工的第三天,媒体来了。第五天,热搜第一。第七天,平台发布声明:“该站点系承包商个人行为,已终止一切合作,永不录用。”\n\n你成了平台的“个别害群之马”,替整个系统挨了枪。\n\n讽刺的是——顶替你的新站长,第一周就恢复了你那套罚款制度。"},
+survive:{t:"你赚到了。真的赚到了吗?",art:"🧾",cls:"ending",
+ txt:"三十天,你安全下庄。\n\n没有进去,没有暴雷,账上躺着你榨出来的每一分钱。\n\n只是——\n\n{RECAP}\n\n年底,你换了辆新车。副驾驶,永远是空的。"}
+};
+
+/* ============ 剧情调度 ============ */
+function dueStories(){
+  const q=[],d=S.day;
+  if(d===6&&!S.C.gaokao){q.push("C_gaokao");}
+  if(d===8&&S.A.offered===0&&!S.A.accepted&&!S.A.closed){q.push("A_offer");}
+  if(d===9&&S.C.gaokao&&!S.C.asked){q.push("C_ask");}
+  if(d===12&&!S.D.arrived&&!S.D.refused){q.push("D_arrive");}
+  if(d===14&&S.A.offered===1&&!S.A.accepted&&!S.A.closed){q.push("A_offer2");}
+  if(!S.B.hit&&d>=10&&S.squeeze>=60&&S.B.rushCount>=10){q.push("B_hit");}
+  if(S.B.hit&&S.B.visits<3&&d-S.B.lastVisit>=3){q.push("B_visit");}
+  if(S.C.sonIn&&!S.C.crashed&&S.C.squeezeDays>=3){q.push("C_crash");}
+  if(S.C.crashed&&!S.C.bedTalk&&d>=S.C.crashDay+2){q.push("C_bed");}
+  if(S.D.joinDay){
+    const n=d-S.D.joinDay;
+    if(n===1&&!S.D.crushed)q.push("D_day1");
+    if(n===2&&!S.D.crushed)q.push("D_day2");
+    if(n>=3&&!S.D.crushed)q.push("D_crush");
+    if(S.D.crushed&&!S.D.wheelchair&&d>=S.D.crushDay+4)q.push("D_wheel");
+  }
+  if(S.A.accepted&&!S.A.sting&&(S.A.greyDays>=3&&(S.risk>=60||S.day>=20)||S.risk>=100)){q.push("A_sting");}
+  return q;
+}
+const HANDLERS={
+  A_accept(){S.A.accepted=true;},
+  A_decline(){S.A.offered=1;},
+  A_close(){S.A.closed=true;},
+  C_join(){S.C.sonIn=true;S.riders.push(mkRider("小宇",'儿子'));},
+  D_join(){S.D.joinDay=S.day;S.riders.push(mkRider("你哥",'亲哥'));},
+  END_death(){showEnding("death");},
+};
+/* 剧情事件显示后的标记 */
+function markStory(id){
+  const m={C_gaokao:()=>S.C.gaokao=true, C_ask:()=>S.C.asked=true,
+    A_offer:()=>{}, A_offer2:()=>{}, D_arrive:()=>S.D.arrived=true,
+    B_hit:()=>{S.B.hit=true;S.B.lastVisit=S.day;},
+    B_visit:()=>{S.B.visits++;S.B.lastVisit=S.day;},
+    C_crash:()=>{S.C.crashed=true;S.C.crashDay=S.day;removeRider("儿子");},
+    C_bed:()=>S.C.bedTalk=true,
+    D_crush:()=>{S.D.crushed=true;S.D.crushDay=S.day;removeRider("亲哥");},
+    D_wheel:()=>S.D.wheelchair=true,
+    A_sting:()=>S.A.sting=true};
+  if(m[id])m[id]();
+  if(id==="D_arrive"&&!S.D.joinDay)S.D.refused=false; // refuse在choice里另标
+}
+function removeRider(tag){S.riders=S.riders.filter(r=>r.tag!==tag);}
+
+/* ============ 事件展示 ============ */
+function witnessText(){
+  const ws=[...S.riders].sort((a,b)=>(a.loy??50)-(b.loy??50)).slice(0,3);
+  const sins=S.sins.slice(0,3);
+  if(!ws.length||!sins.length)return"证人席上,骑手们一个接一个站起来。每个人都有话说。";
+  const lines=sins.map((sin,i)=>`${(ws[i]||ws[0]).name}走上证人席:「${sin}。」`);
+  return"证人席上的脸,你全都认识。\n\n"+lines.join("\n");
+}
+const ART={
+ A_offer:"event/ev_money",A_offer2:"event/ev_money",A_sting:"event/ev_money",
+ A_arrest_r:"event/ev_arrest",A_arrest_s:"event/ev_arrest",A_interro:"bg/bg_cell",A_court:"bg/bg_court",
+ B_hit:"event/ev_crash_scene",B_visit:"bg/bg_hospital",
+ C_gaokao:"event/ev_gaokao",C_ask:"bg/bg_station_day",C_crash:"event/ev_crash_scene",C_bed:"bg/bg_hospital",
+ D_arrive:"bg/bg_station_night",D_day1:"bg/bg_street_rain",D_day2:"bg/bg_street_rain",
+ D_crush:"event/ev_truck_aftermath",D_wheel:"bg/bg_station_day",
+ strike_pay:"event/ev_strike",g_notice:"event/ev_money",g_check:"bg/bg_street_rain",
+ sudden_death:"bg/bg_street_rain",rain_fall:"bg/bg_street_rain",typhoon:"bg/bg_street_rain",
+ borrow:"bg/bg_hospital",reporter:"bg/bg_station_night"
+};
+/* 立牌:人物全身像按原比例站在事件卡右侧,不裁切 */
+const CHART={
+ A_offer:"char/char_kbro",A_offer2:"char/char_kbro",A_sting:"char/char_kbro",A_interro:"char/char_police",
+ D_arrive:"char/char_brother",D_day1:"char/char_brother",D_day2:"char/char_brother",
+ C_ask:"char/char_son",
+ traffic_police:"char/char_police",rain_fall:"char/char_rider_a",kneel:"char/char_rider_b",
+ livestream:"char/char_rider_c",poach:"char/char_rider_b",newbie:"char/char_rider_c"
+};
+let QUEUE=[];
+function showEvent(evt,storyId){
+  const layer=$("modal-layer");
+  layer.style.display="flex";
+  const card=document.createElement("div");card.className="card";
+  const key=storyId||evt.id;
+  const artFile=ART[key]?("assets/"+ART[key]+".png"):null;
+  let txt=evt.txt;
+  if(txt.includes("{WITNESS}"))txt=txt.replace("{WITNESS}",witnessText());
+  card.innerHTML=`<div class="art"><span>${evt.art||"❔"}</span></div><h3>${evt.title}</h3><div class="txt">${txt}</div><div class="btns"></div>`;
+  if(artFile){
+    const im=new Image();
+    im.onload=()=>{const a=card.querySelector(".art");const ph=a.querySelector("span");if(ph)ph.remove();a.insertBefore(im,a.firstChild);};
+    im.src=artFile;
+  }
+  if(CHART[key]){
+    card.querySelector(".art").classList.add("tall");
+    const fig=new Image();fig.className="fig";
+    fig.onload=()=>{const a=card.querySelector(".art");if(!artFile){const ph=a.querySelector("span");if(ph)ph.remove();}a.appendChild(fig);};
+    fig.src="assets/"+CHART[key]+".png";
+  }
+  const btns=card.querySelector(".btns");
+  evt.choices.forEach(c=>{
+    const b=document.createElement("button");
+    b.innerHTML=c.t+(c.s?`<small>${c.s}</small>`:"");
+    b.onclick=()=>{
+      layer.innerHTML="";layer.style.display="none";
+      applyFx(c.fx);
+      if(c.sin){S.sins.push(c.sin);loyAll(-2);}
+      else if(c.fx&&c.fx.a&&c.fx.a<0)loyAll(3); /* 罕见的善举,骑手记得 */
+      if(c.quit){const cand=S.riders.filter(r=>!r.tag);if(cand.length){const q=pick(cand);S.riders=S.riders.filter(r=>r!==q);S.anger=clamp(S.anger-10,0,100);floatTxt(q.name+" 离职了",false);}}
+      if(storyId==="D_arrive"&&c.t.includes("不缺人"))S.D.refused=true;
+      if(c.go){
+        if(HANDLERS[c.go]){HANDLERS[c.go]();if(c.go==="END_death")return;}
+        else if(STORY[c.go]){markStory(c.go);showEvent(STORY[c.go],c.go);return;}
+      }
+      if(midCheck())return;
+      nextInQueue();
+    };
+    btns.appendChild(b);
+  });
+  layer.innerHTML="";layer.appendChild(card);
+}
+function nextInQueue(){
+  if(!QUEUE.length){settle();return;}
+  const item=QUEUE.shift();
+  if(typeof item==="string"){markStory(item);showEvent(STORY[item],item);}
+  else showEvent(item,null);
+}
+
+/* ============ 阶段面板 ============ */
+function renderMorning(){
+  S.phase="morning";
+  if(S.wxDay!==S.day){S.wxDay=S.day;S.weather=pick(["晴","晴","晴","阴","阴","小雨","小雨","暴雨"]);}
+  const hints=[];
+  if(S.A.accepted&&!S.A.closed)hints.push("🕶️ K哥的“生意”随时可以在决策面板开关。");
+  if(S.C.sonIn&&!S.C.crashed)hints.push("🎒 儿子今天也在跑单。系统不会认得他——除非你让它认得。");
+  if(S.D.joinDay&&!S.D.crushed)hints.push("🧳 你哥昨晚跑到凌晨。他说多跑一单,多还一单。");
+  if(S.B.hit)hints.push("🏥 妈还在住院。");
+  if(S.appDay!==S.day){S.appDay=S.day;S.applicants=[];const n=R(1,3);for(let i=0;i<n;i++)S.applicants.push(mkRider());}
+  const apps=(S.applicants||[]).map((a,i)=>`<div class="hire"><b>${a.name}</b><span>${spdLabel(a)} · 体力${a.stamina}</span>
+    <span class="meta">${a.bio}</span>
+    <button data-i="${i}" ${S.riders.length>=14?"disabled":""}>${S.riders.length>=14?"站点满员":"招(中介费¥300)"}</button></div>`).join("");
+  $("panel").innerHTML=`<h2>D${S.day} 晨会</h2>
+  <div class="brief">今日天气:<b>${S.weather}</b>${S.weather==="暴雨"?"(订单暴涨,路面湿滑)":S.weather==="小雨"?"(订单上浮)":""}<br>
+  在岗骑手:<b>${S.riders.length}</b> 人(上限14)<br>
+  订单预测:<b>${S.weather==="暴雨"?"爆单":S.weather==="小雨"?"偏多":"正常"}</b> · 人越多,平台派的单也越多</div>
+  <div class="brief news">📰 ${pick(NEWS)}</div>
+  ${hints.map(h=>`<div class="brief">${h}</div>`).join("")}
+  <h2 style="margin-top:14px">🎤 早会画饼</h2>
+  <div class="brief" id="pep-box">${S.pepDay===S.day?"今天的会开过了。骑手们低着头刷手机,没人信,也没人敢不来。":`
+    <div class="chk">
+    <label data-p="a">「下月单价上调,平台批了」</label>
+    <label data-p="b">「本周评优秀骑手,奖金500」</label>
+    <label data-p="c">「兄弟们再撑撑,我也难」</label>
+    <label data-p="x">不开会</label></div>
+    <div class="hint">画饼能压怨气涨忠诚——但同一张饼画多了,会当场翻车。发奖金是真金白银,不翻车。</div>`}</div>
+  ${apps?`<h2 style="margin-top:14px">📋 今日应聘</h2>${apps}`:""}`;
+  $("panel").querySelectorAll("#pep-box label").forEach(l=>l.onclick=()=>{
+    S.pep=S.pep||{a:0,c:0};S.pepDay=S.day;
+    const p=l.dataset.p;let msg="";
+    if(p==="a"){S.pep.a++;
+      if(S.pep.a<=2){applyFx({a:-12});loyAll(4);msg="骑手群里难得有了几个👍。饼,他们暂时还愿意吃。";}
+      else{applyFx({a:15});loyAll(-8);msg="「上个月你也是这么说的。」老马当众把烟头掐灭在你桌上。饼,画穿了。";}}
+    else if(p==="b"){
+      if(S.money<500){msg="你摸了摸口袋,连500都拿不出来。奖金的事,没敢开口。";}
+      else{applyFx({m:-500,a:-10});loyAll(6);msg="奖金给了跑单最多的老哥。他愣了半天:「真给啊?」";}}
+    else if(p==="c"){S.pep.c++;
+      if(S.pep.c<=3){applyFx({a:-5});loyAll(2);msg="你把嗓音压得很低。有几个老骑手叹了口气——他们比你更难,但他们心软。";}
+      else{applyFx({a:10});loyAll(-5);msg="「你难?你开的什么车,我们骑的什么车?」人群散了。";}}
+    else msg="你挥挥手让大家散了。多一事不如少一事。";
+    beep(520,.07);save();
+    $("pep-box").innerHTML=msg;
+  });
+  $("panel").querySelectorAll(".hire button").forEach(b=>b.onclick=()=>{
+    const a=S.applicants[+b.dataset.i];
+    if(!a||S.riders.length>=14||S.money<300)return;
+    S.money-=300;S.riders.push(a);S.applicants.splice(+b.dataset.i,1);
+    if((a.spd||1)<1)unlock("scout");
+    beep(880,.08);floatTxt(a.name+" 入职了 -¥300",false);
+    save();renderMorning();
+  });
+  renderHUD();
+}
+function segBtns(id,labels,cur,danger){
+  return `<div class="seg" id="${id}">`+labels.map((l,i)=>`<button data-v="${i}" class="${i===cur?'on':''} ${danger&&i>=2?'danger':''}">${l}</button>`).join("")+`</div>`;
+}
+function renderDecision(){
+  S.phase="decision";
+  const t=S.today;
+  const FINE=["不罚","罚50","罚200"];
+  $("panel").innerHTML=`<h2>D${S.day} 开工前设置</h2>
+  <div class="ctl"><h3>💸 罚款制度(骑手出问题时,罚款进你腰包)</h3>
+  差评 ${segBtns("seg-bad",FINE,t.fineBad)} 超时 ${segBtns("seg-late",FINE,t.fineLate)} 投诉 ${segBtns("seg-com",FINE,t.fineComplain)}</div>
+  <div class="ctl"><h3>🪤 克扣手段</h3><div class="chk">
+  <label id="ck-dep" class="${t.dedDeposit?'on':''}">装备押金</label>
+  <label id="ck-fee" class="${t.dedFee?'on':''}">收“管理费”</label>
+  <label id="ck-delay" class="${t.dedDelay?'on':''}">拖欠周结</label>
+  ${S.C.sonIn&&!S.C.crashed?`<label id="ck-son" class="${t.careSon?'on':''}">🎒 让儿子今天歇着</label>`:""}
+  ${S.A.accepted&&!S.A.closed?`<label id="ck-grey" class="grey ${t.grey?'on':''}">🕶️ 灰色生意(今日接“货”)</label>`:""}
+  </div><div class="hint">让儿子休息会少个人手,其他骑手也会嘀咕“凭什么”;灰色生意开启后,黑色的“货单”会混进订单流。</div></div>
+  <div class="ctl"><h3>📦 今日营业玩法</h3><div class="hint">开门后订单实时涌入:<b style="color:var(--yellow)">点订单→点空闲骑手</b>完成派单。骑手送单途中不能接新单;订单没人接会超时,平台罚站点的钱。<br>点<b style="color:var(--red)">送单中的骑手</b>可以【催单】提速——催得越狠,出事越快。暴雨天必爆单,自己掂量。</div></div>`;
+  const bindSeg=(id,key)=>{$(id).querySelectorAll("button").forEach(b=>b.onclick=()=>{S.today[key]=+b.dataset.v;renderDecision();});};
+  bindSeg("seg-bad","fineBad");bindSeg("seg-late","fineLate");bindSeg("seg-com","fineComplain");
+  const bindCk=(id,key)=>{const el=$(id);if(el)el.onclick=()=>{S.today[key]=!S.today[key];renderDecision();};};
+  bindCk("ck-dep","dedDeposit");bindCk("ck-fee","dedFee");bindCk("ck-delay","dedDelay");bindCk("ck-son","careSon");bindCk("ck-grey","grey");
+  renderHUD();
+}
+
+/* ============ 营业:实时派单 ============ */
+const TICKS=70, TICK_MS=600, GMIN=3; /* 1格=3游戏分钟,10:00开工 */
+const gm=t=>Math.max(3,t*GMIN);
+const clockStr=t=>{const m=600+t*GMIN;return String(Math.floor(m/60)).padStart(2,"0")+":"+String(m%60).padStart(2,"0");};
+const SHOPS=["蜜雪冰城","沙县小吃","黄焖鸡","张亮麻辣烫","汉堡王后","兰州拉面","一点点","猪脚饭","水饺馆","螺蛳粉"];
+const DESTS=["阳光花园","城中村7栋","写字楼A座","大学城宿舍","老小区6楼无电梯","医院住院部","网吧二楼","翡翠湾","工地板房","KTV"];
+let DINT=null,OID=0;
+function startDispatch(){
+  S.phase="dispatch";
+  S.dispatch={t:0,acc:0,sel:null,queue:[],
+    stats:{done:0,earn:0,grey:0,greyN:0,timeout:0,penalty:0,rush:0,badrev:0,acc:0,accCost:0,per:{}}};
+  $("panel").innerHTML=`<h2>D${S.day} 营业中 · ${S.weather}${S.weather==="暴雨"?" ⚠️爆单预警":""}</h2>
+  <div class="dhead"><div class="tbar"><i id="dtime" style="width:0%"></i></div><span id="dstats"></span>
+  <button class="dbtn" id="btn-auto"></button><button class="dbtn" id="btn-pause">⏸ 暂停</button></div>
+  <div class="dtip" id="dtip"></div>
+  <div id="queue" class="queue"></div>`;
+  renderHUD();
+  syncDispatchCtl();
+  $("btn-auto").onclick=()=>{S.today.auto=!S.today.auto;syncDispatchCtl();};
+  $("btn-pause").onclick=togglePause;
+  startTicker();
+}
+function syncDispatchCtl(){
+  const a=$("btn-auto");if(a){a.textContent=S.today.auto?"🤖 自动派单:开":"🖐 手动派单中";a.classList.toggle("off",!S.today.auto);}
+  const tip=$("dtip");
+  if(tip)tip.innerHTML=S.today.auto
+    ?`骑手自己抢单,好单几秒就被抢光;<b>烂单没人抢</b>,会一直躺在大厅——点烂单→点骑手,赏给你看不顺眼的人。<b style="color:var(--red)">点在途骑手【催单】</b>提速抽罚款;<b>灰黑“货单”</b>没人敢碰,要派得你亲手点。`
+    :`全手动:点订单选中 → 点底部空闲骑手派出。金额是配送费,站点抽三成。<b>灰黑“货单”</b>整票都是你的。`;
+}
+function togglePause(){
+  if(S.phase!=="dispatch")return;
+  const b=$("btn-pause");
+  if(DINT){clearInterval(DINT);DINT=null;if(b)b.textContent="▶ 继续";}
+  else{startTicker();if(b)b.textContent="⏸ 暂停";}
+}
+function startTicker(){
+  if(DINT)clearInterval(DINT);
+  DINT=setInterval(()=>{tickOnce();renderDispatch();if(S.dispatch&&S.dispatch.t>=TICKS)endDispatch();},TICK_MS);
+}
+/* 骑手个人卡(营业中打开会暂停) */
+function showRiderCard(r){
+  const wasRunning=!!DINT;
+  if(DINT){clearInterval(DINT);DINT=null;}
+  const dp=S.dispatch;
+  const status=(r.tag==="儿子"&&S.today.careSon)?"😴 休息中(你让他歇着)":r.busy?`📦 送单中·剩${gm(r.busy)}分钟`:"🟢 空闲";
+  const layer=$("modal-layer");layer.style.display="flex";
+  layer.innerHTML=`<div class="card rprof">
+   <div class="rmono">${r.name[0]}</div>
+   <h3 style="text-align:center">${r.name}${r.tag?` <span style="color:var(--red);font-size:14px">【${r.tag}】</span>`:""}</h3>
+   <div class="txt" style="color:var(--dim);text-align:center">${r.bio||""}</div>
+   <table class="settle" style="margin:0 auto 12px;width:82%">
+   <tr><td>状态</td><td>${status}${wasRunning?" ⏸ 已暂停":""}</td></tr>
+   <tr><td>体力</td><td>${r.stamina}/100 ${r.stamina<35?"⚠️ 快跑不动了":""}</td></tr>
+   <tr><td>速度</td><td>${spdLabel(r)}</td></tr>
+   <tr><td>忠诚</td><td>${r.loy??50}/100 · ${loyMood(r)}</td></tr>
+   <tr><td>今日已送</td><td>${dp?(dp.stats.per[r.name]||0):0} 单</td></tr>
+   <tr><td>累计已送</td><td>${r.total||0} 单</td></tr></table>
+   <div class="btns"><button id="rp-close">关闭${wasRunning?"并继续营业":""}</button>
+   ${r.tag?"":`<button id="rp-fire" style="border-color:#5c2c2c;color:var(--red)">开除他</button>`}</div></div>`;
+  $("rp-close").onclick=()=>{layer.innerHTML="";layer.style.display="none";if(wasRunning)startTicker();};
+  const fb=$("rp-fire");
+  if(fb)fb.onclick=()=>{
+    S.riders=S.riders.filter(x=>x!==r);
+    S.anger=clamp(S.anger+6,0,100);
+    S.firedN=(S.firedN||0)+1;if(S.firedN>=5)unlock("hr_nightmare");
+    beep(180,.15,"sawtooth");floatTxt(r.name+" 被你开了(怨气+6)",false);
+    layer.innerHTML="";layer.style.display="none";
+    renderHUD();if(wasRunning)startTicker();
+  };
+}
+function spawnOrder(forceType){
+  const dp=S.dispatch;if(!dp||dp.queue.length>=18)return;
+  let type=forceType;
+  if(!type){const r=Math.random();type=r<0.25?"good":r<0.75?"norm":"junk";}
+  const T={good:{pay:R(8,15),dur:R(6,10),dl:R(14,20),lb:"优质单"},
+           norm:{pay:R(5,8),dur:R(8,13),dl:R(16,24),lb:"普通单"},
+           junk:{pay:R(3,5),dur:R(12,18),dl:R(18,26),lb:"远距离烂单"},
+           urgent:{pay:R(15,25),dur:R(5,8),dl:R(8,12),lb:"⚡加急单·顾客加价"},
+           med:{pay:6,dur:R(5,8),dl:R(10,14),lb:"🚑 救命药·超时会出人命"},
+           elder:{pay:2,dur:R(10,14),dl:R(24,30),lb:"🧓 独居老人餐·没人抢"},
+           grey:{pay:R(800,2000),dur:R(14,20),dl:R(30,40),lb:"🕶️ 货单·勿问"}}[type];
+  dp.queue.push({id:++OID,type,pay:T.pay,dur:T.dur,dl:T.dl,dl0:T.dl,lb:T.lb,rushed:false,age:0,
+    from:type==="grey"?"K哥":pick(SHOPS),to:type==="grey"?"城东仓库":pick(DESTS)});
+}
+function assignOrder(o,r,byAI){
+  const dp=S.dispatch;if(!dp||r.busy)return;
+  if(r.tag==="儿子"&&S.today.careSon)return;
+  if(!byAI&&o.type==="junk"&&!r.tag)r.loy=clamp((r.loy??50)-2,0,100); /* 亲手赏的烂单,他记着 */
+  dp.queue=dp.queue.filter(x=>x.id!==o.id);
+  const slow=(r.stamina<25?1.35:1)*(r.spd||1);
+  beep(660,.07);
+  r.busy=Math.max(2,Math.round(o.dur*slow));r.busy0=r.busy;r.cur=o;
+  dp.sel=null;renderDispatch();
+}
+function rushRider(r){
+  const dp=S.dispatch;if(!dp||!r.busy)return;
+  if(r.cur&&r.cur.rushed){floatTxt(r.name+":我已经在玩命了!",false);unlock("living_hell");return;}
+  beep(440,.06);
+  r.busy=Math.max(1,Math.ceil(r.busy*0.62));
+  r.stamina=clamp(r.stamina-4,5,100);
+  r.loy=clamp((r.loy??50)-3,0,100);
+  if(r.cur)r.cur.rushed=true;
+  S.anger=clamp(S.anger+2,0,100);
+  dp.stats.rush++;S.B.rushCount++;
+  const p=4+(S.weather==="暴雨"?6:S.weather==="小雨"?3:0)+(r.stamina<25?8:0);
+  if(!r.tag&&R(1,100)<=p){ // 剧情角色的事故由剧情线接管
+    const cost=R(300,1200); /* 摆平费——大头你摊给了骑手,所以怨气涨得凶 */
+    S.money-=cost;S.anger=clamp(S.anger+8,0,100);S.risk=clamp(S.risk+3,0,100);
+    dp.stats.acc++;dp.stats.accCost+=cost;
+    r.busy=0;r.busy0=0;r.cur=null;r.stamina=15;
+    beep(90,.35,"sawtooth",0.06);shake();
+    r.loy=clamp((r.loy??50)-15,0,100);
+    floatTxt(`💥 ${r.name} 被你催出了车祸 -${fmt(cost)}`,false);
+  }
+  renderDispatch();
+}
+function completeOrder(r){
+  const dp=S.dispatch,o=r.cur;if(!o)return;
+  r.cur=null;r.busy0=0;
+  r.stamina=clamp(r.stamina-Math.ceil(o.dur/3),5,100);
+  dp.stats.done++;dp.stats.per[r.name]=(dp.stats.per[r.name]||0)+1;r.total=(r.total||0)+1;
+  if(o.type==="grey"){dp.stats.grey+=o.pay;dp.stats.greyN++;S.money+=o.pay;floatTxt("+"+fmt(o.pay)+" 🕶️",true);beep(220,.18,"triangle");}
+  else{
+    const cut=Math.max(1,Math.round(o.pay*0.3));dp.stats.earn+=cut;S.money+=cut;beep(880,.05,"square",0.02);
+    if(o.type==="med"){loyAll(2);floatTxt("🚑 药送到了。这单,值。",true);}
+    if(o.type==="elder"){loyAll(1);floatTxt("🍬 老人给"+r.name+"塞了颗糖",true);}
+  }
+  if(o.rushed&&Math.random()<0.3)dp.stats.badrev++;
+}
+function tickOnce(){
+  const dp=S.dispatch;if(!dp)return;
+  dp.t++;
+  const wMult={"晴":1,"阴":1,"小雨":1.35,"暴雨":1.8}[S.weather];
+  dp.acc+=(0.55+S.riders.length*0.045)*wMult; /* 人多单多,但增速放缓——招人是真解压 */
+  while(dp.acc>=1){dp.acc--;spawnOrder();}
+  if(Math.random()<0.018)spawnOrder("urgent");
+  if(Math.random()<0.012)spawnOrder(Math.random()<0.5?"med":"elder");
+  if(S.today.grey&&S.A.accepted&&Math.random()<0.05)spawnOrder("grey");
+  S.riders.forEach(r=>{if(r.busy>0){r.busy--;if(r.busy===0)completeOrder(r);}});
+  // 亲哥拼命抢单
+  const bro=S.riders.find(r=>r.tag==="亲哥");
+  if(bro&&!bro.busy){const o=dp.queue.find(o=>o.type!=="grey");if(o)assignOrder(o,bro,true);}
+  // 自动模式=骑手抢单:挂出来几秒才被抢,只抢好单普通单;烂单和货单没人碰
+  if(S.today.auto){
+    let grabs=0;
+    for(const r of S.riders){
+      if(grabs>=2)break;
+      if(r.busy||r.tag==="亲哥")continue;
+      if(r.tag==="儿子"&&S.today.careSon)continue;
+      const cand=dp.queue.filter(o=>!["grey","junk","med","elder"].includes(o.type)&&o.age>=2).sort((a,b)=>b.pay-a.pay)[0];
+      if(!cand)break;
+      assignOrder(cand,r,true);grabs++;
+    }
+  }
+  dp.queue.forEach(o=>{o.dl--;o.age=(o.age||0)+1;});
+  dp.queue.filter(o=>o.dl<=0).forEach(o=>{
+    if(o.type==="grey")return; // 货单没人碰,K哥自己收回去
+    if(o.type==="med"){
+      S.risk=clamp(S.risk+8,0,100);S.anger=clamp(S.anger+5,0,100);
+      S.sins.push("为了不耽误赚钱,你眼睁睁看着一份救命药烂在大厅里");
+      floatTxt("🚑 救命药超时了……医院来电话了",false);beep(100,.4,"sawtooth",0.06);shake();
+      return;
+    }
+    if(o.type==="elder"){S.anger=clamp(S.anger+3,0,100);floatTxt("🧓 老人的饭,凉透了",false);return;}
+    dp.stats.timeout++;dp.stats.penalty+=8;S.money-=8;beep(160,.1,"sawtooth",0.02);
+  });
+  dp.queue=dp.queue.filter(o=>o.dl>0);
+}
+function renderDispatch(){
+  const dp=S.dispatch;if(!dp)return;
+  const tm=$("dtime");if(tm)tm.style.width=Math.min(100,dp.t/TICKS*100)+"%";
+  const st=$("dstats");
+  if(st){const tot=dp.stats.done+dp.stats.timeout;const rate=tot?Math.round(dp.stats.done/tot*100):100;
+  st.textContent=`🕙 ${clockStr(dp.t)} · 完成${dp.stats.done} · 超时${dp.stats.timeout} · 准时率${rate}%`;}
+  const q=$("queue");if(!q)return;
+  q.innerHTML=dp.queue.map(o=>`<div class="order ${o.type==="grey"?"og":o.type==="urgent"?"ug":(o.type==="med"||o.type==="elder")?"om":""} ${dp.sel===o.id?"sel":""}" data-id="${o.id}">
+    <span class="pay">¥${o.pay}</span><span>${o.from} → ${o.to}</span>
+    <span class="meta">${o.lb} · 送约${gm(o.dur)}分 · 限${gm(o.dl)}分</span>
+    <div class="dlbar"><i class="${o.dl/o.dl0<0.35?'low':''}" style="width:${Math.round(o.dl/o.dl0*100)}%"></i></div></div>`).join("")
+    ||`<div class="brief" style="color:var(--dim)">暂无新订单……</div>`;
+  q.querySelectorAll(".order").forEach(el=>{
+    el.onclick=()=>{dp.sel=dp.sel===+el.dataset.id?null:+el.dataset.id;renderDispatch();};
+    el.ondblclick=()=>{ /* 双击快派:直接丢给最快的空闲骑手 */
+      const o=dp.queue.find(x=>x.id===+el.dataset.id);if(!o)return;
+      const free=S.riders.filter(r=>!r.busy&&!(r.tag==="儿子"&&S.today.careSon)).sort((a,b)=>(a.spd||1)-(b.spd||1))[0];
+      if(free)assignOrder(o,free);
+    };
+  });
+  renderHUD();
+}
+function endDispatch(){
+  if(DINT){clearInterval(DINT);DINT=null;}
+  const dp=S.dispatch;
+  S.riders.forEach(r=>{if(r.busy>0){r.busy=0;completeOrder(r);}}); // 在途单收尾
+  dp.queue=[];
+  runEvents();
+}
+/* ============ 事件阶段 ============ */
+function runEvents(){
+  S.phase="events";renderHUD();
+  QUEUE=dueStories();
+  const wanted=Math.max(2,Math.min(4,QUEUE.length+2))-QUEUE.length;
+  const pool=EVENTS.filter(e=>(!e.cond||e.cond(S))&&!(S.lastEvts||[]).includes(e.id));
+  const chosen=[];
+  for(let i=0;i<wanted&&pool.length;i++){const e=pool.splice(Math.floor(Math.random()*pool.length),1)[0];chosen.push(e);}
+  if(S.today.grey&&S.dispatch&&S.dispatch.stats.greyN>0&&Math.random()<0.5)chosen.push(pick(GREY_EVENTS));
+  S.lastEvts=chosen.map(e=>e.id);
+  QUEUE=QUEUE.concat(chosen);
+  nextInQueue();
+}
+function settle(){
+  S.phase="settle";
+  const t=S.today,rows=[];
+  const st=(S.dispatch&&S.dispatch.stats)||{done:0,earn:0,grey:0,greyN:0,timeout:0,penalty:0,rush:0,badrev:0,acc:0,accCost:0,per:{}};
+  rows.push([`完成订单 ${st.done} 单 · 站点抽成30%(已实时入账)`,st.earn]);
+  if(st.greyN)rows.push([`“货单” ${st.greyN} 票(已实时入账)`,st.grey]);
+  const fineVal=[0,50,200];
+  const violations=st.badrev+st.acc+Math.floor(st.rush/3);
+  const fineIncome=(fineVal[t.fineBad]+fineVal[t.fineLate]+fineVal[t.fineComplain])*clamp(violations,0,8);
+  if(fineIncome){rows.push([`罚款收入(差评/事故/超时 共${violations}起)`,fineIncome]);S.money+=fineIncome;}
+  let ded=0;if(t.dedDeposit)ded+=300;if(t.dedFee)ded+=400;if(t.dedDelay)ded+=600;
+  if(ded){rows.push(["克扣所得",ded]);S.money+=ded;}
+  if(st.timeout)rows.push([`订单超时 ${st.timeout} 单(平台罚站点)`,-st.penalty]);
+  if(st.acc)rows.push([`催出来的事故 ${st.acc} 起(赔付/摆平)`,-st.accCost]);
+  /* 平台KPI:准时率 */
+  const tot=st.done+st.timeout;const rate=tot?st.done/tot:1;const ratePct=Math.round(rate*100)+"%";
+  let kpi=0;
+  if(tot>=20&&rate>=0.92){kpi=200;rows.push([`平台“服务之星”补贴(准时率${ratePct})`,200]);S.money+=200;}
+  else if(tot>=20&&rate<0.75){kpi=-500;rows.push([`平台KPI罚款(准时率${ratePct})`,-500]);S.money-=500;}
+  const total=st.earn+st.grey+fineIncome+ded-st.penalty-st.accCost+kpi;
+  if(st.greyN){S.risk=clamp(S.risk+R(10,18),0,100);S.A.greyDays++;}
+  else if(!t.grey)S.risk=clamp(S.risk-2,0,100);
+  // 压榨/怨气结算
+  const fineLv=t.fineBad+t.fineLate+t.fineComplain;
+  const dedN=(t.dedDeposit?1:0)+(t.dedFee?1:0)+(t.dedDelay?1:0);
+  const avg=S.riders.length?st.done/S.riders.length:0;
+  S.squeeze=clamp(S.squeeze+Math.round(st.rush*1.3+(avg>=6?6:avg>=5?3:0)+fineLv*2.5+dedN*3)-6,0,100);
+  S.anger=clamp(S.anger+Math.round(fineLv*1.5+dedN*2)-4,0,100);
+  if(t.careSon&&S.C.sonIn&&!S.C.crashed){S.anger=clamp(S.anger+4,0,100);}
+  /* 成就判定 */
+  S.cumAcc=(S.cumAcc||0)+st.acc;S.cumGrey=(S.cumGrey||0)+st.grey;
+  if(total>=1000)unlock("first_gold");
+  if(fineIncome>=1000)unlock("fine_artist");
+  if(dedN===3)unlock("iron_rooster");
+  if(st.rush>=20)unlock("rush_demon");
+  if(S.weather==="暴雨"&&tot>=20&&rate>=0.9)unlock("storm_master");
+  if(kpi===200)unlock("kpi_star");
+  if(S.cumAcc>=10)unlock("bones");
+  if(S.cumGrey>=20000)unlock("black_empire");
+  // 儿子承压计数:让他跑了不少单还不给休息
+  const sonN=st.per["小宇"]||0;
+  if(S.C.sonIn&&!S.C.crashed&&!t.careSon&&sonN>=3)S.C.squeezeDays++;
+  // 忠诚度日漂移:罚款克扣寒了心,不作恶慢慢回暖
+  if(fineLv+dedN>0)loyAll(-(fineLv+dedN));else loyAll(1);
+  // 离职/举报/补员
+  const notes=[];
+  // 忠心老骑手替你挡事
+  if(S.risk>0&&S.riders.some(r=>(r.loy??50)>=70)&&Math.random()<0.25){
+    const g=pick(S.riders.filter(r=>(r.loy??50)>=70));
+    S.risk=clamp(S.risk-3,0,100);
+    notes.push(`🛡 ${g.name} 悄悄替你挡了次麻烦(风险-3)。他还信你,你自己掂量。`);
+  }
+  if(S.anger>=70&&Math.random()<(S.anger>=90?0.9:0.35)){
+    const cand=S.riders.filter(r=>!r.tag);
+    if(cand.length){const q=pick(cand);S.riders=S.riders.filter(r=>r!==q);S.anger=clamp(S.anger-12,0,100);notes.push(`😡 ${q.name} 受不了了,摔了工牌走人。(怨气-12)`);}
+  }
+  const haters=S.riders.filter(r=>(r.loy??50)<25).length;
+  if(Math.random()<S.anger*0.004+haters*0.008){const rr=R(8,15);S.risk=clamp(S.risk+rr,0,100);notes.push(`🚨 有骑手匿名举报了站点(风险+${rr})。${haters?"你大概猜得到是谁。":""}`);}
+  if(S.riders.length<7){S.riders.push(mkRider());S.anger=clamp(S.anger-4,0,100);notes.push("📝 行业从来不缺走投无路的人,又来了个新骑手。");}
+  if(S.anger>=100){S.angerStreak++;if(S.angerStreak===1)notes.push("⚠️ 骑手群里在传罢工接龙。再这样下去,明天就压不住了。");}
+  else S.angerStreak=0;
+  save();
+  $("panel").innerHTML=`<h2>D${S.day} 日结算</h2>
+  <table class="settle">${rows.map(r=>`<tr><td>${r[0]}</td><td class="${r[1]>=0?'pos':'neg'}">${r[1]>=0?"+":""}${fmt(r[1])}</td></tr>`).join("")}
+  <tr><td><b>今日入账</b></td><td class="${total>=0?'pos':'neg'}"><b>${total>=0?"+":""}${fmt(total)}</b></td></tr></table>
+  ${notes.map(n=>`<div class="brief">${n}</div>`).join("")}`;
+  renderHUD();
+  endingCheck();
+}
+function nextDay(){
+  if(S.day>=30){showEnding("survive");return;}
+  S.day++;S.dispatch=null;
+  S.riders.forEach(r=>{r.busy=0;r.busy0=0;r.cur=null;r.stamina=clamp(r.stamina+28,5,100);});
+  save();
+  renderMorning();
+}
+function advance(){
+  if(S.over)return;
+  if(S.phase==="morning")renderDecision();
+  else if(S.phase==="decision")startDispatch();
+  else if(S.phase==="dispatch")endDispatch();
+  else if(S.phase==="settle")nextDay();
+}
+
+/* ============ 结局 ============ */
+function midCheck(){ /* 事件中途的即时判定 */
+  if(S.family<=0){showEnding("family");return true;}
+  return false;
+}
+function endingCheck(){
+  if(S.over)return;
+  if(S.risk>=100){
+    if(S.A.accepted&&!S.A.sting)return; // 明日必触发钓鱼,走死刑线
+    showEnding("prison");return;
+  }
+  if(S.family<=0){showEnding("family");return;}
+  if(S.angerStreak>=2){showEnding("expelled");return;}
+}
+function sinListHtml(){
+  if(!S.sins.length)return"<div class='sins'>——你居然没干什么伤天害理的事。可惜,系统本身就是你最大的罪。</div>";
+  return `<div class="sins"><b>罪状清单:</b><br>`+S.sins.map((s,i)=>`${i+1}. ${s}`).join("<br>")+`</div>`;
+}
+function showEnding(key){
+  S.over=true;wipe();
+  const e=ENDINGS[key];
+  unlock("end_"+key);
+  if(key==="survive"){unlock("full_month");if(!S.sins.length)unlock("saint");}
+  const score=evilScore(),rank=rankOf(score);
+  const lb=pushLB({s:score,r:rank,e:e.t,d:S.day,m:S.money,t:Date.now()});
+  let txt=e.txt;
+  if((key==="prison"||key==="expelled")&&S.riders.length){
+    const rat=[...S.riders].sort((a,b)=>(a.loy??50)-(b.loy??50))[0];
+    txt=`第一个把证据交出去的,是${rat.name}。你想起来了——${rat.bio||"你从没正眼看过他。"}\n\n`+txt;
+  }
+  if(key==="survive"){
+    const recap=[];
+    if(S.B.hit)recap.push("你妈是被你的催单电话“撞”进医院的。");
+    if(S.C.crashed)recap.push("你儿子的腿,断在你调高的派单权重里。");
+    if(S.D.crushed)recap.push("你哥用两条腿,换清了三十七万网贷。");
+    if(S.sins.length)recap.push(`还有那${S.sins.length}件,你自己心里有数的事。`);
+    if(!recap.length)recap.push("这三十天你居然没造成什么无法挽回的伤害。系统会替你继续。");
+    txt=txt.replace("{RECAP}",recap.join("\n"));
+  }
+  const EART={death:"bg/bg_court",prison:"bg/bg_cell",family:"bg/bg_station_night",expelled:"event/ev_strike",survive:"bg/bg_street_rain"};
+  const layer=$("modal-layer");layer.style.display="flex";
+  layer.innerHTML=`<div class="card ending"><div class="art" id="end-art"><span>${e.art}</span></div>
+  <h3>${e.t}</h3><div class="txt">${txt}</div>
+  ${sinListHtml()}
+  <div class="rankbadge"><div class="rk">${rank}</div><div class="sc">恶人积分 ${score} 分 · 罪状${S.sins.length}条 ×100 + 剧情恶行加成</div></div>
+  <div class="brief" style="margin:0 20px 10px">存活 ${S.day} 天 · 累计捞金 ¥${fmt(S.money)} · 罪状 ${S.sins.length} 条</div>
+  <div class="lb"><b>📜 历史恶人榜</b><br>${lb.map((x,i)=>`${i+1}. ${x.r} · ${x.s}分 · ${x.e}`).join("<br>")}</div>
+  <div class="btns">
+  <button id="btn-report">📸 保存结局报告(图片)</button>
+  <button id="btn-endach">🏆 查看成就</button>
+  <button onclick="location.reload()">再开一局(换个死法)</button></div></div>`;
+  if(EART[key]){const im=new Image();im.onload=()=>{const a=$("end-art");a.innerHTML="";a.appendChild(im);};im.src="assets/"+EART[key]+".png";}
+  $("btn-report").onclick=()=>exportReport(e.t,score,rank);
+  $("btn-endach").onclick=renderAchList;
+}
+
+/* ============ 调试 ============ */
+const DBG={
+  set(k,v){S[k]=v;renderHUD();},
+  skip(){if(DINT){clearInterval(DINT);DINT=null;}$("modal-layer").innerHTML="";$("modal-layer").style.display="none";S.phase="settle";nextDay();},
+  /* 自动打完一个营业日:贪心派单;rushy=true 时高频催单 */
+  simDay(rushy){
+    if(S.phase!=="dispatch")return;
+    if(DINT){clearInterval(DINT);DINT=null;}
+    const dp=S.dispatch;
+    while(dp.t<TICKS){
+      tickOnce();
+      S.riders.forEach(r=>{
+        if(r.busy){if(rushy&&Math.random()<0.5)rushRider(r);return;}
+        if(r.tag==="儿子"&&S.today.careSon)return;
+        const o=dp.queue.find(o=>o.type==="grey")||dp.queue.sort((a,b)=>b.pay-a.pay)[0];
+        if(o)assignOrder(o,r);
+      });
+    }
+    endDispatch();
+  }
+};
+document.addEventListener("keydown",e=>{if(e.key==="`"){const d=$("debug");d.style.display=d.style.display==="block"?"none":"block";}});
+
+/* ============ 成就系统(跨局保留) ============ */
+const ACHS=[
+{id:"first_gold",ic:"💰",n:"第一桶金",d:"单日入账超过¥1,000"},
+{id:"fine_artist",ic:"🧾",n:"罚款艺术家",d:"单日罚款收入≥¥1,000"},
+{id:"iron_rooster",ic:"🐔",n:"铁公鸡",d:"同一天开满三项克扣"},
+{id:"rush_demon",ic:"📢",n:"催命符",d:"单日催单20次"},
+{id:"living_hell",ic:"😤",n:"“我已经在玩命了!”",d:"试图对同一单催第二次"},
+{id:"storm_master",ic:"⛈️",n:"爆单指挥官",d:"暴雨天准时率≥90%(20单以上)"},
+{id:"kpi_star",ic:"⭐",n:"平台服务之星",d:"拿到平台准时率补贴"},
+{id:"bones",ic:"💥",n:"一将功成万骨枯",d:"一局内催出10起事故"},
+{id:"black_empire",ic:"🕶️",n:"黑金帝国",d:"一局内货单入账超¥20,000"},
+{id:"hr_nightmare",ic:"🪓",n:"无情裁员",d:"一局内开除5名骑手"},
+{id:"scout",ic:"⚡",n:"慧眼识珠",d:"招到一名快腿骑手"},
+{id:"full_month",ic:"📅",n:"全勤站长",d:"撑到第30天"},
+{id:"saint",ic:"😇",n:"好人一生平安?",d:"通关且罪状为0"},
+{id:"end_death",ic:"⚖️",n:"雷霆雨露,俱是天恩",d:"达成死刑结局"},
+{id:"end_prison",ic:"🔒",n:"把牢底坐穿",d:"达成入狱结局"},
+{id:"end_family",ic:"🕳️",n:"孤家寡人",d:"达成众叛亲离结局"},
+{id:"end_expelled",ic:"📢",n:"人人喊打",d:"达成行业除名结局"},
+{id:"end_survive",ic:"🧾",n:"“赢家”",d:"活过30天"}];
+function achSet(){try{return new Set(JSON.parse(localStorage.getItem("zbsim_ach")||"[]"));}catch(e){return new Set();}}
+function unlock(id){
+  const s=achSet();if(s.has(id))return;
+  s.add(id);try{localStorage.setItem("zbsim_ach",JSON.stringify([...s]));}catch(e){}
+  const a=ACHS.find(x=>x.id===id);if(!a)return;
+  const t=document.createElement("div");t.className="toast";t.innerHTML=`🏆 成就达成:<b style="color:var(--yellow)">${a.n}</b>`;
+  $("toasts").appendChild(t);beep(1320,.12,"triangle");setTimeout(()=>t.remove(),3500);
+}
+function renderAchList(){
+  const s=achSet();
+  $("ach-list").innerHTML=ACHS.map(a=>`<div class="achrow ${s.has(a.id)?"":"lock"}"><span class="ic">${a.ic}</span><div><b>${a.n}</b><small>${a.d}</small></div><span style="margin-left:auto">${s.has(a.id)?"✅":"🔒"}</span></div>`).join("");
+  $("ach-modal").style.display="flex";
+}
+$("btn-ach").onclick=renderAchList;
+
+/* ============ 恶人积分与段位 ============ */
+const RANKS=[[0,"青铜恶人 · 见习扒皮"],[200,"白银恶人 · 罚款能手"],[400,"黄金恶人 · 克扣宗师"],[700,"铂金恶人 · 吸血站长"],[1000,"钻石恶人 · 人形压榨机"],[1500,"星耀恶人 · 黑心之王"],[2000,"王者恶人 · 万恶之源"]];
+function evilScore(){
+  let s=S.sins.length*100;
+  s+=(S.A.greyDays||0)*50+(S.B.rushCount||0)*2+(S.cumAcc||0)*20;
+  if(S.B.hit)s+=200;if(S.C.crashed)s+=200;if(S.D.crushed)s+=200;if(S.A.sting)s+=300;
+  return s;
+}
+function rankOf(s){let r=RANKS[0][1];for(const[th,n]of RANKS)if(s>=th)r=n;return r;}
+function pushLB(entry){
+  let lb=[];try{lb=JSON.parse(localStorage.getItem("zbsim_lb")||"[]");}catch(e){}
+  lb.push(entry);lb.sort((a,b)=>b.s-a.s);lb=lb.slice(0,5);
+  try{localStorage.setItem("zbsim_lb",JSON.stringify(lb));}catch(e){}
+  return lb;
+}
+
+/* ============ 结局报告导出PNG ============ */
+function exportReport(endTitle,score,rank){
+  const W=1000,H=1400,c=document.createElement("canvas");c.width=W;c.height=H;
+  const x=c.getContext("2d");
+  x.fillStyle="#14181f";x.fillRect(0,0,W,H);
+  x.strokeStyle="#FFC300";x.lineWidth=6;x.strokeRect(20,20,W-40,H-40);
+  x.textAlign="center";
+  x.fillStyle="#FFC300";x.font="bold 40px sans-serif";
+  x.fillText("众包站长模拟器 · 结局报告",W/2,110);
+  x.fillStyle="#8b95a3";x.font="20px sans-serif";
+  x.fillText("—— 一份迟到的判决书 ——",W/2,150);
+  x.fillStyle="#e05545";x.font="bold 56px sans-serif";
+  x.fillText(endTitle,W/2,250);
+  x.fillStyle="#FFC300";x.font="bold 34px sans-serif";
+  x.fillText(rank,W/2,330);
+  x.fillStyle="#d8dde5";x.font="22px sans-serif";
+  x.fillText(`恶人积分 ${score} 分`,W/2,370);
+  x.fillText(`存活 ${S.day} 天 · 累计捞金 ¥${fmt(S.money)} · 罪状 ${S.sins.length} 条`,W/2,410);
+  x.strokeStyle="#39424f";x.lineWidth=1;x.beginPath();x.moveTo(90,450);x.lineTo(W-90,450);x.stroke();
+  x.textAlign="left";x.fillStyle="#e0b8b0";x.font="bold 24px sans-serif";
+  x.fillText("罪状清单:",90,500);
+  x.font="20px sans-serif";
+  const list=S.sins.slice(0,16);
+  list.forEach((sin,i)=>{
+    let t=(i+1)+". "+sin;if(t.length>34)t=t.slice(0,33)+"…";
+    x.fillText(t,90,545+i*42);
+  });
+  if(S.sins.length>16){x.fillStyle="#8b95a3";x.fillText(`……以及另外 ${S.sins.length-16} 条`,90,545+16*42);}
+  if(!S.sins.length){x.fillStyle="#8b95a3";x.fillText("——竟然一条都没有。但系统本身,就是最大的罪。",90,545);}
+  x.textAlign="center";x.fillStyle="#5a6270";x.font="17px sans-serif";
+  x.fillText("本游戏为虚构讽刺作品 · 压榨与违法皆有代价",W/2,H-90);
+  x.fillText(new Date().toLocaleDateString("zh-CN"),W/2,H-60);
+  const a=document.createElement("a");
+  a.download="众包站长模拟器_结局报告.png";
+  a.href=c.toDataURL("image/png");
+  a.click();
+}
+
+/* ============ 顶栏状态说明 ============ */
+const TIPS={
+"st-money":"<b>💰 现金</b><br>你捞到手的钱。配送抽成、罚款、克扣、“货单”分成都进这里;赔偿、摆平、人情往外流。可以是负数——负债了照样得开店。",
+"st-squeeze":"<b>🔥 压榨度</b><br>你把骑手逼得有多狠——催单、罚款、克扣都会累积。压榨越高,越容易出事故,某些<b style='color:#e05545'>不可挽回的剧情</b>也会被它点燃(≥60要小心)。它只升得快、降得慢。",
+"st-anger":"<b>😡 骑手怨气</b><br>骑手对你的恨。高了有人摔工牌走人、有人匿名举报(涨风险);<b style='color:#e05545'>连续两天爆表=集体罢工+媒体曝光</b>,你会被行业除名。骑手离职反而会泄压——反正不缺走投无路的人。",
+"st-risk":"<b>🚨 风险</b><br>警方和监管的注意力。举报、事故瞒报、暴力驱赶记者,尤其是“货单”,都会让它飙升。<b style='color:#e05545'>满100,你就进去了</b>——进的是哪种“去”,取决于你干过什么。安分守己时每天会自然降一点。",
+"st-family":"<b>👪 家庭</b><br>家里人还认不认你。母亲、儿子、亲哥的每一次失望都会扣它。<b style='color:#e05545'>归零=众叛亲离</b>。钱买不回来这个数值。"};
+let tipKey=null;
+function showTip(k){
+  const box=$("tipbox");
+  if(tipKey===k){box.style.display="none";tipKey=null;return;}
+  tipKey=k;
+  box.innerHTML=`<span class="x" onclick="this.parentNode.style.display='none';tipKey=null">✕</span>`+TIPS[k];
+  box.style.display="block";
+}
+Object.keys(TIPS).forEach(k=>{const el=$(k);if(el)el.addEventListener("click",()=>showTip(k));});
+
+/* ============ 启动 ============ */
+$("btn-new").onclick=()=>{wipe();newGame();$("title-screen").style.display="none";$("app").style.display="flex";renderMorning();};
+(function(){
+  try{
+    if(localStorage.getItem("zbsim2")){
+      const b=$("btn-cont");b.style.display="";
+      b.onclick=()=>{if(load()){$("title-screen").style.display="none";$("app").style.display="flex";renderMorning();}};
+    }
+  }catch(e){}
+})();
+</script>
+</body>
+</html>
